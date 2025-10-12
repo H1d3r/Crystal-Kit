@@ -1,0 +1,20 @@
+CC_64=x86_64-w64-mingw32-gcc
+
+all: bin/loader.x64.o
+debug: bin/debug.x64.o
+
+bin:
+	mkdir bin
+
+bin/loader.x64.o: bin
+	$(CC_64) -DWIN_X64 -shared -Wall -Wno-pointer-arith -c src/loader.c -o bin/loader.x64.o
+	$(CC_64) -DWIN_X64 -shared -Wall -Wno-pointer-arith -c src/proxy.c -o bin/proxy.x64.o
+	$(CC_64) -DWIN_X64 -shared -Wall -Wno-pointer-arith -c src/hook.c -o bin/hook.x64.o
+
+bin/debug.x64.o: bin
+	$(CC_64) -DWIN_X64 -DDEBUG -g -shared -Wall -Wno-pointer-arith -c src/loader.c -o bin/loader.x64.o
+	$(CC_64) -DWIN_X64 -DDEBUG -g -shared -Wall -Wno-pointer-arith -c src/proxy.c -o bin/proxy.x64.o
+	$(CC_64) -DWIN_X64 -DDEBUG -g -shared -Wall -Wno-pointer-arith -c src/hook.c -o bin/hook.x64.o
+
+clean:
+	rm -f bin/*

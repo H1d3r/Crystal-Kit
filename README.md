@@ -26,8 +26,8 @@ post-ex {
 
 There are lots of improvements that can be made to this codebase.  Some that come to mind include:
 
-- [ ] Add BUD-style structures to track memory allocations.
-- [ ] Don't use RWX memory for Beacon.
+- [x] Add BUD-style structures to track memory allocations.
+- [x] Don't use RWX memory.
 - [ ] Add GMA & GPA patching to the postex loader (`smartinject` is not yet supported in `stage` for prepended loaders).
 - [ ] Add AMSI & ETW bypasses to the postex loader.
 - [ ] Add memory freeing code on ExitThread.

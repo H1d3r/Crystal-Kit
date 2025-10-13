@@ -19,6 +19,7 @@
 
 #include <windows.h>
 #include <wininet.h>
+#include "memory.h"
 #include "draugr.h"
 #include "proxy.h"
 #include "hash.h"
@@ -39,18 +40,8 @@ DECLSPEC_IMPORT PVOID SpoofStub(PVOID, PVOID, PVOID, PVOID, PDRAUGR_PARAMETERS, 
 /* store resolved functions */
 void * g_ExitThread;
 
-/* patched in from loader.spec */
-char xorkey[128] = { 1 };
-
-void applyxor(char * data, DWORD len) {
-	for (DWORD x = 0; x < len; x++) {
-		data[x] ^= xorkey[x % 128];
-	}
-}
-
 /* some globals */
-char *                g_dllBase;
-DWORD                 g_dllSize;
+MEMORY_LAYOUT         g_layout;
 SYNTHETIC_STACK_FRAME g_stackFrame;
 
 void init_frame_info()
@@ -976,13 +967,14 @@ char * WINAPI _GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
     return result;
 }
 
-void go(IMPORTFUNCS * funcs, char * dllBase, DWORD dllsz)
+void go(IMPORTFUNCS * funcs, MEMORY_LAYOUT * layout)
 {
 	funcs->LoadLibraryA   = (__typeof__(LoadLibraryA)   *)_LoadLibraryA;
 	funcs->GetProcAddress = (__typeof__(GetProcAddress) *)_GetProcAddress;
 
-    g_dllBase = dllBase;
-	g_dllSize = dllsz;
+    if (layout != NULL) {
+        g_layout = *layout;
+    }
 
 	init_frame_info();
 }

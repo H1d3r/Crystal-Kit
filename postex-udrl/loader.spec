@@ -1,5 +1,5 @@
-name     "Crystal Kit"
-describe ""
+name     "Crystal Kit Postex UDRL"
+describe "Evasion Kit for Cobalt Strike"
 author   "Daniel Duggan (@_RastaMouse)"
 
 x64:
@@ -10,18 +10,15 @@ x64:
 		make pic
 		export
 		preplen
-		link "my_proxy"
-
-		generate $HKEY 128
+		link "draugr"
 
 		load "bin/hook.x64.o"
 			make object
-			patch "xorkey" $HKEY
 			import "LoadLibraryA, GetProcAddress, SpoofStub, RtlLookupFunctionEntry, GetModuleHandleA, VirtualAlloc, VirtualAllocEx, VirtualProtect, VirtualProtectEx, VirtualFree, GetThreadContext, SetThreadContext, ResumeThread, CreateThread, CreateRemoteThread, OpenProcess, OpenThread, CloseHandle, CreateFileMappingA, MapViewOfFile, UnmapViewOfFile, VirtualQuery, DuplicateHandle, ReadProcessMemory, WriteProcessMemory, ExitThread, CreateProcessA, Sleep"
 			export
-			link "my_hooks"
+			link "hooks"
 
 		push $DLL
-			link "my_data"
+			link "postex"
 	
 		export

@@ -203,9 +203,6 @@ DWORD SizeOfDLL(DLLDATA * data) {
 }
 
 void LoadDLL(DLLDATA * dll, char * src, char * dst) {
-	/* copy our headers over to the destination address, if we wish */
-	__movsb((unsigned char *)dst, (unsigned char *)src, dll->OptionalHeader->SizeOfHeaders);
-
 	/* load our section data */
 	LoadSections(dll, src, dst);
 

@@ -1,10 +1,30 @@
-
 /*
-* This is just the Draugr assembly stub used to prep the stack
-* and make the API call. It does mean that anything calling this
-* has to do the work of prepping the structs with the fake
-* frame data and such...
-*/
+ * Copyright 2025 Daniel Duggan, Zero-Point Security
+ *
+ * Redistribution and use in source and binary forms, with or without modification, are
+ * permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this list of
+ * conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, this list of
+ * conditions and the following disclaimer in the documentation and/or other materials provided
+ * with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors may be used to
+ * endorse or promote products derived from this software without specific prior written
+ * permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+ * TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 void * __attribute__((naked)) SpoofStub()
 {
@@ -16,7 +36,7 @@ void * __attribute__((naked)) SpoofStub()
         "mov rdi, [rsp + 32];"           // Storing struct in rdi
         "mov rsi, [rsp + 40];"           // Storing function to call
         
-		// Storing our original registers
+        // Storing our original registers
         "mov [rdi + 24], r10;"           // Storing OG rdi into param
         "mov [rdi + 88], r11;"           // Storing OG rsi into param
         "mov [rdi + 96], r12;"           // Storing OG r12 into param
@@ -25,7 +45,7 @@ void * __attribute__((naked)) SpoofStub()
         "mov [rdi + 120], r15;"          // Storing OG r15 into param
         "mov r12, rax;"                  // OG code used r12 for ret addr
         
-		// Prepping to move stack args
+        // Prepping to move stack args
         "xor r11, r11;"                  // r11 will hold the # of args that have been pushed
         "mov r13, [rsp + 0x30];"         // r13 will hold the # of args total that will be pushed
         "mov r14, 0x200;"                // r14 will hold the offset we need to push stuff
@@ -41,17 +61,17 @@ void * __attribute__((naked)) SpoofStub()
         "cmp r11d, r13d;"              // comparing # of stack args added vs # of stack args we need to add
         "je finish;"
         
-		// Getting location to move the stack arg to
+        // Getting location to move the stack arg to
         "sub r14, 8;"                  // 1 arg means r11 is 0, r14 already 0x28 offset.
         "mov r15, rsp;"                // get current stack base
         "sub r15, r14;"                // subtract offset
         
-		// Procuring the stack arg
+        // Procuring the stack arg
         "add r10, 8;"
         "push qword ptr [r10];"
         "pop qword ptr [r15];"
         
-		// Increment the counter and loop back in case we need more args
+        // Increment the counter and loop back in case we need more args
         "add r11, 1;"
         "jmp looping;"
         "finish:;"
@@ -74,7 +94,7 @@ void * __attribute__((naked)) SpoofStub()
         "mov [rdi], rbx;"              // Fixup member now holds the address of Fixup
         "mov rbx, rdi;"                // Address of param struct (Fixup)is moved into rbx
         
-		// For indirect syscall use. If you want to use it, make sure to set ssn
+        // For indirect syscall use. If you want to use it, make sure to set ssn
         // in param struct first.Otherwise, this is ignored by the callee.
         "mov r10, rcx;"
         "mov rax, [rdi + 72];"
@@ -96,7 +116,7 @@ void * __attribute__((naked)) SpoofStub()
         "xor rax, rax;"
         "pop rax;"
         "jmp qword ptr [rcx + 8];"
-		
+        
         ".att_syntax prefix"
     );
 }

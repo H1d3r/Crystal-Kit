@@ -1,5 +1,37 @@
+/*
+ * Copyright 2025 Daniel Duggan, Zero-Point Security
+ *
+ * Redistribution and use in source and binary forms, with or without modification, are
+ * permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this list of
+ * conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, this list of
+ * conditions and the following disclaimer in the documentation and/or other materials provided
+ * with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors may be used to
+ * endorse or promote products derived from this software without specific prior written
+ * permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+ * TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <windows.h>
+
 #define KERNEL32DLL_HASH  0x6A4ABC5B
 #define NTDLLDLL_HASH     0x3CFA685D
+
+#define TEXT_HASH         0xEBC2F9B4
 
 #define LOADLIBRARYA_HASH            0xEC0E4E8E
 #define GETPROCADDRESS_HASH          0x7C0DFCAA
@@ -31,12 +63,6 @@
 #define CREATEPROCESSA_HASH          0x16B3FE72
 #define SLEEP_HASH                   0xDB2D49B0
 
-#define TPALLOCWORK_HASH             0x7449D9F8
-#define TPPOSTWORK_HASH              0xA3560665
-#define TPRELEASEWORK_HASH           0x1FFDA65A
-#define NTALLOCATEVIRTUALMEMORY_HASH 0xD33BCABD
-#define NTPROTECTVIRTUALMEMORY_HASH  0x8C394D89
-
 #define HASH_KEY 13
 
 #ifndef __MINGW32__
@@ -44,18 +70,17 @@
 #endif
 
 __forceinline DWORD ror( DWORD d ) {
-	return _rotr( d, HASH_KEY );
+    return _rotr( d, HASH_KEY );
 }
 
 __forceinline DWORD hash( char * c )
 {
     register DWORD h = 0;
-    
-	do
-	{
-		h = ror( h );
+    do
+    {
+        h = ror( h );
         h += *c;
-	} while( *++c );
+    } while( *++c );
 
     return h;
 }

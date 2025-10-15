@@ -29,20 +29,13 @@
 #include <windows.h>
 
 typedef struct {
-    void * baseAddress;
-    SIZE_T size;
-    DWORD  currentProtect;
-    DWORD  previousProtect;
-} MEMORY_SECTION;
+    ULONG_PTR functionPtr;
+    ULONG_PTR argument1;
+    ULONG_PTR argument2;
+    ULONG_PTR argument3;
+    ULONG_PTR argument4;
+    ULONG_PTR argument5;
+    ULONG_PTR argument6;
+} NTARGS;
 
-typedef struct {
-    void *         baseAddress;
-    SIZE_T         size;
-    MEMORY_SECTION sections[5];
-} MEMORY_REGION;
-
-typedef struct {
-    MEMORY_REGION pic;
-    MEMORY_REGION hooks;
-    MEMORY_REGION beacon;
-} MEMORY_LAYOUT;
+VOID ProxyNtApi(NTARGS * args); 

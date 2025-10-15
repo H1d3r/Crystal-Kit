@@ -40,6 +40,16 @@ typedef struct {
     char  value[];
 } RESOURCE;
 
+typedef struct {
+    #if DEBUG
+    char data[8192];
+    char code[16384];
+    #else
+    char data[4096];
+    char code[12288];
+    #endif
+} PICO;
+
 DECLSPEC_IMPORT LPVOID   WINAPI KERNEL32$VirtualAlloc         (LPVOID, SIZE_T, DWORD, DWORD);
 DECLSPEC_IMPORT LPVOID   WINAPI KERNEL32$VirtualAllocEx       (HANDLE, LPVOID, SIZE_T, DWORD, DWORD);
 DECLSPEC_IMPORT BOOL     WINAPI KERNEL32$VirtualProtect       (LPVOID, SIZE_T, DWORD, PDWORD);

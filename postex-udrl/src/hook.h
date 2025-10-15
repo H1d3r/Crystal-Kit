@@ -115,6 +115,11 @@ typedef struct _DRAUGR_FUNCTION_CALL {
 
 SYNTHETIC_STACK_FRAME g_stackFrame;
 
+void applyxor(char * data, DWORD len);
+void xorsection(MEMORY_SECTION * section, BOOL mask);
+void xorregion(MEMORY_REGION * region, BOOL mask);
+void xormemory(BOOL mask);
+
 void initFrameInfo()
 {
     PVOID pModuleFrame1 = KERNEL32$GetModuleHandleA("kernel32.dll");

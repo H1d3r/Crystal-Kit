@@ -4,7 +4,7 @@ author   "Daniel Duggan (@_RastaMouse)"
 
 x64:
 	load "bin/loader.x64.o"
-		make pic +gofirst
+		make pic +gofirst +optimize
 		dfr "resolve" "ror13"
 		mergelib "../libtcg.x64.zip"
 		mergelib "../libtp.x64.zip"

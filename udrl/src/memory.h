@@ -44,5 +44,5 @@ typedef struct {
 typedef struct {
     MEMORY_REGION pic;
     MEMORY_REGION hooks;
-    MEMORY_REGION beacon;
+    MEMORY_REGION dll;
 } MEMORY_LAYOUT;

@@ -4,7 +4,10 @@ author   "Daniel Duggan (@_RastaMouse)"
 
 x64:
 	load "bin/loader.x64.o"
-		make pic
+		make pic +gofirst +optimize
+		dfr "resolve" "ror13"
+		mergelib "../libtcg.x64.zip"
+		mergelib "../libtp.x64.zip"
 	
 	load "bin/proxy.x64.o"
 		make pic
@@ -13,12 +16,13 @@ x64:
 		link "draugr"
 
 		load "bin/hook.x64.o"
-			make object
-			import "LoadLibraryA, GetProcAddress, SpoofStub, RtlLookupFunctionEntry, GetModuleHandleA, VirtualAlloc, VirtualAllocEx, VirtualProtect, VirtualProtectEx, VirtualFree, GetThreadContext, SetThreadContext, ResumeThread, CreateThread, CreateRemoteThread, OpenProcess, OpenThread, CloseHandle, CreateFileMappingA, MapViewOfFile, UnmapViewOfFile, VirtualQuery, DuplicateHandle, ReadProcessMemory, WriteProcessMemory, ExitThread, CreateProcessA, Sleep"
+			make object +optimize
+			mergelib "../libtcg.x64.zip"
+		import "LoadLibraryA, GetProcAddress, SpoofStub, VirtualAlloc, VirtualAllocEx, VirtualProtect, VirtualProtectEx, VirtualFree, VirtualQuery, GetThreadContext, SetThreadContext, ResumeThread, CreateThread, CreateRemoteThread, OpenProcess, OpenThread, ExitThread, CloseHandle, Sleep, CreateFileMappingA, MapViewOfFile, UnmapViewOfFile, DuplicateHandle, ReadProcessMemory, WriteProcessMemory, CreateProcessA"
 			export
 			link "hooks"
 
 		push $DLL
-			link "postex"
+			link "dll"
 	
 		export

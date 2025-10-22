@@ -568,8 +568,140 @@ VOID WINAPI _Sleep(DWORD dwMilliseconds)
     draugr(&call);
 }
 
+HMODULE WINAPI _LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
+{
+    #if DEBUG
+    dprintf("[POSTEX] _LoadLibraryExW\n");
+    dprintf(" -> lpLibFileName : %S\n", lpLibFileName);
+    dprintf(" -> hFile         : 0x%p\n", hFile);
+    dprintf(" -> dwFlags       : %d\n", dwFlags);
+    #endif
+
+    /* spoof the call */
+    FUNCTION_CALL call;
+    memset(&call, 0, sizeof(FUNCTION_CALL));
+
+    call.function = (PVOID)(LoadLibraryExW);
+    call.argc     = 3;
+    call.args[0]  = (ULONG_PTR)(lpLibFileName);
+    call.args[1]  = (ULONG_PTR)(hFile);
+    call.args[2]  = (ULONG_PTR)(dwFlags);
+
+    /* hold the result */
+    HMODULE result = (HMODULE)draugr(&call);
+
+    /* check to see if it's mscoreei.dll */
+    LPCWSTR back = MSVCRT$wcsrchr(lpLibFileName, L'\\');
+    LPCWSTR fwd  = MSVCRT$wcsrchr(lpLibFileName, L'/');
+    LPCWSTR name = back > fwd ? back : fwd;
+    
+    if (name) { name++; }        
+    else { name = lpLibFileName; }
+
+    if (MSVCRT$_wcsicmp(name, L"mscoreei.dll") == 0)
+    {
+        /* walk the IAT and hook LoadLibraryExW */
+        PIMAGE_DOS_HEADER dosHeaders = (PIMAGE_DOS_HEADER)result;
+        PIMAGE_NT_HEADERS ntHeaders  = (PIMAGE_NT_HEADERS)((DWORD_PTR)result + dosHeaders->e_lfanew);
+
+        IMAGE_DATA_DIRECTORY importsDirectory     = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+        PIMAGE_IMPORT_DESCRIPTOR importDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)(importsDirectory.VirtualAddress + (DWORD_PTR)result);
+
+        while (importDescriptor->Name != 0)
+        {
+            PIMAGE_THUNK_DATA originalFirstThunk = (PIMAGE_THUNK_DATA)((DWORD_PTR)result + importDescriptor->OriginalFirstThunk);
+            PIMAGE_THUNK_DATA firstThunk         = (PIMAGE_THUNK_DATA)((DWORD_PTR)result + importDescriptor->FirstThunk);
+
+            while (originalFirstThunk->u1.AddressOfData != 0)
+            {
+                PIMAGE_IMPORT_BY_NAME functionName = (PIMAGE_IMPORT_BY_NAME)((DWORD_PTR)result + originalFirstThunk->u1.AddressOfData);
+                DWORD h = hash((char *)(functionName->Name));
+                
+                if (h == LOADLIBRARYEXW_HASH)
+                {
+                    DWORD oldProtect = 0;
+
+                    if (_VirtualProtect((LPVOID)(&firstThunk->u1.Function), 8, PAGE_READWRITE, &oldProtect))
+                    {
+                        firstThunk->u1.Function = (DWORD_PTR)(_LoadLibraryExW);
+                        _VirtualProtect((LPVOID)(&firstThunk->u1.Function), 8, oldProtect, &oldProtect);
+                    }
+                }
+
+                ++originalFirstThunk;
+                ++firstThunk;
+            }
+
+            importDescriptor++;
+        }
+    }
+
+    return result;
+}
+
+HMODULE WINAPI _LoadLibraryW(LPCWSTR lpLibFileName)
+{
+    #if DEBUG
+    dprintf("[POSTEX] _LoadLibraryW\n");
+    dprintf(" -> lpLibFileName : %S\n", lpLibFileName);
+    #endif
+
+    /* spoof the call */
+    FUNCTION_CALL call;
+    memset(&call, 0, sizeof(FUNCTION_CALL));
+
+    call.function = (PVOID)(LoadLibraryW);
+    call.argc     = 1;
+    call.args[0]  = (ULONG_PTR)(lpLibFileName);
+
+    /* hold the result */
+    HMODULE result = (HMODULE)draugr(&call);
+
+    /* walk the IAT and hook LoadLibraryExW */
+    PIMAGE_DOS_HEADER dosHeaders = (PIMAGE_DOS_HEADER)result;
+    PIMAGE_NT_HEADERS ntHeaders  = (PIMAGE_NT_HEADERS)((DWORD_PTR)result + dosHeaders->e_lfanew);
+
+    IMAGE_DATA_DIRECTORY importsDirectory     = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+    PIMAGE_IMPORT_DESCRIPTOR importDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)(importsDirectory.VirtualAddress + (DWORD_PTR)result);
+
+    while (importDescriptor->Name != 0)
+    {
+        PIMAGE_THUNK_DATA originalFirstThunk = (PIMAGE_THUNK_DATA)((DWORD_PTR)result + importDescriptor->OriginalFirstThunk);
+        PIMAGE_THUNK_DATA firstThunk         = (PIMAGE_THUNK_DATA)((DWORD_PTR)result + importDescriptor->FirstThunk);
+
+        while (originalFirstThunk->u1.AddressOfData != 0)
+        {
+            PIMAGE_IMPORT_BY_NAME functionName = (PIMAGE_IMPORT_BY_NAME)((DWORD_PTR)result + originalFirstThunk->u1.AddressOfData);
+            DWORD h = hash((char *)(functionName->Name));
+
+            if (h == LOADLIBRARYEXW_HASH)
+            {
+                DWORD oldProtect = 0;
+
+                if (_VirtualProtect((LPVOID)(&firstThunk->u1.Function), 8, PAGE_READWRITE, &oldProtect))
+                {
+                    firstThunk->u1.Function = (DWORD_PTR)(_LoadLibraryExW);
+                    _VirtualProtect((LPVOID)(&firstThunk->u1.Function), 8, oldProtect, &oldProtect);
+                }
+            }
+
+            ++originalFirstThunk;
+            ++firstThunk;
+        }
+
+        importDescriptor++;
+    }
+
+    return result;
+}
+
 HMODULE WINAPI _LoadLibraryA(LPCSTR lpLibFileName)
 {
+    #if DEBUG
+    dprintf("[POSTEX] _LoadLibraryA\n");
+    dprintf(" -> lpLibFileName : %s\n", lpLibFileName);
+    #endif
+
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
@@ -604,6 +736,12 @@ char * WINAPI _GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
     }
     else if (h == LOADLIBRARYA_HASH) {
         return (char *)_LoadLibraryA;
+    }
+    else if (h == LOADLIBRARYW_HASH) {
+        return (char *)_LoadLibraryW;
+    }
+    else if (h == LOADLIBRARYEXW_HASH) {
+        return (char*)_LoadLibraryExW;
     }
     else if (h == VIRTUALALLOC_HASH) {
         return (char *)_VirtualAlloc;

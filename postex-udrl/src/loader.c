@@ -42,6 +42,8 @@ typedef struct {
     WIN32_FUNC(LoadLibraryA);
     WIN32_FUNC(GetProcAddress);
     DRAUGR Draugr;
+    WIN32_FUNC(LoadLibraryW);
+    WIN32_FUNC(LoadLibraryExW);
     WIN32_FUNC(VirtualAlloc);
     WIN32_FUNC(VirtualAllocEx);
     WIN32_FUNC(VirtualProtect);
@@ -274,6 +276,8 @@ void go(void * loaderArgument)
 
     funcs.LoadLibraryA       = LoadLibraryA;
     funcs.GetProcAddress     = GetProcAddress;
+    funcs.LoadLibraryW       = KERNEL32$LoadLibraryW;
+    funcs.LoadLibraryExW     = KERNEL32$LoadLibraryExW;
     funcs.VirtualAlloc       = KERNEL32$VirtualAlloc;
     funcs.VirtualAllocEx     = KERNEL32$VirtualAllocEx;
     funcs.VirtualProtect     = KERNEL32$VirtualProtect;

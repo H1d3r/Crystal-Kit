@@ -40,6 +40,9 @@ DECLSPEC_IMPORT HMODULE           WINAPI KERNEL32$GetModuleHandleA       (LPCSTR
 DECLSPEC_IMPORT PRUNTIME_FUNCTION WINAPI KERNEL32$RtlLookupFunctionEntry (DWORD64, PDWORD64, PUNWIND_HISTORY_TABLE);
 DECLSPEC_IMPORT ULONG             NTAPI  NTDLL$RtlRandomEx               (PULONG);
 
+DECLSPEC_IMPORT int       WINAPIV MSVCRT$_wcsicmp (const wchar_t *, const wchar_t *);
+DECLSPEC_IMPORT wchar_t * WINAPIV MSVCRT$wcsrchr  (const wchar_t *, wchar_t);
+
 /* the proxy pic */
 DECLSPEC_IMPORT PVOID SpoofStub(PVOID, PVOID, PVOID, PVOID, PDRAUGR_PARAMETERS, PVOID, SIZE_T, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID);
 
@@ -155,6 +158,7 @@ BOOL getTextSectionSize(PVOID pModule, PDWORD pdwVirtualAddress, PDWORD pdwSize)
     for (int i = 0; i < pImgNtHeaders->FileHeader.NumberOfSections; i++)
     {
         DWORD h = hash((char*)pImgSectionHeader[i].Name);
+
         if (h == TEXT_HASH)
         {
             *pdwVirtualAddress = pImgSectionHeader[i].VirtualAddress;

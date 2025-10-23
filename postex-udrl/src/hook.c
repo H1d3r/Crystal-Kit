@@ -626,6 +626,8 @@ HMODULE WINAPI _LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlag
                         firstThunk->u1.Function = (DWORD_PTR)(_LoadLibraryExW);
                         _VirtualProtect((LPVOID)(&firstThunk->u1.Function), 8, oldProtect, &oldProtect);
                     }
+
+                    break;
                 }
 
                 ++originalFirstThunk;
@@ -646,7 +648,6 @@ HMODULE WINAPI _LoadLibraryW(LPCWSTR lpLibFileName)
     dprintf(" -> lpLibFileName : %S\n", lpLibFileName);
     #endif
 
-    /* spoof the call */
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
@@ -657,41 +658,52 @@ HMODULE WINAPI _LoadLibraryW(LPCWSTR lpLibFileName)
     /* hold the result */
     HMODULE result = (HMODULE)draugr(&call);
 
-    /* walk the IAT and hook LoadLibraryExW */
-    PIMAGE_DOS_HEADER dosHeaders = (PIMAGE_DOS_HEADER)result;
-    PIMAGE_NT_HEADERS ntHeaders  = (PIMAGE_NT_HEADERS)((DWORD_PTR)result + dosHeaders->e_lfanew);
-
-    IMAGE_DATA_DIRECTORY importsDirectory     = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
-    PIMAGE_IMPORT_DESCRIPTOR importDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)(importsDirectory.VirtualAddress + (DWORD_PTR)result);
-
-    while (importDescriptor->Name != 0)
+    /* was this mscoree.dll? */
+    if (MSVCRT$_wcsicmp(lpLibFileName, L"mscoree.dll") == 0)
     {
-        PIMAGE_THUNK_DATA originalFirstThunk = (PIMAGE_THUNK_DATA)((DWORD_PTR)result + importDescriptor->OriginalFirstThunk);
-        PIMAGE_THUNK_DATA firstThunk         = (PIMAGE_THUNK_DATA)((DWORD_PTR)result + importDescriptor->FirstThunk);
+        /* parse the module's headers */
+        PIMAGE_DOS_HEADER dosHeaders = (PIMAGE_DOS_HEADER)result;
+        PIMAGE_NT_HEADERS ntHeaders  = (PIMAGE_NT_HEADERS)((DWORD_PTR)result + dosHeaders->e_lfanew);
 
-        while (originalFirstThunk->u1.AddressOfData != 0)
+        /* get the import directory */
+        IMAGE_DATA_DIRECTORY importsDirectory     = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+        PIMAGE_IMPORT_DESCRIPTOR importDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)(importsDirectory.VirtualAddress + (DWORD_PTR)result);
+
+        /* walk every imported module */
+        while (importDescriptor->Name != 0)
         {
-            PIMAGE_IMPORT_BY_NAME functionName = (PIMAGE_IMPORT_BY_NAME)((DWORD_PTR)result + originalFirstThunk->u1.AddressOfData);
-            DWORD h = hash((char *)(functionName->Name));
+            PIMAGE_THUNK_DATA originalFirstThunk = (PIMAGE_THUNK_DATA)((DWORD_PTR)result + importDescriptor->OriginalFirstThunk);
+            PIMAGE_THUNK_DATA firstThunk         = (PIMAGE_THUNK_DATA)((DWORD_PTR)result + importDescriptor->FirstThunk);
 
-            if (h == LOADLIBRARYEXW_HASH)
+            /* walk every imported function */
+            while (originalFirstThunk->u1.AddressOfData != 0)
             {
-                DWORD oldProtect = 0;
+                PIMAGE_IMPORT_BY_NAME functionName = (PIMAGE_IMPORT_BY_NAME)((DWORD_PTR)result + originalFirstThunk->u1.AddressOfData);
+                DWORD h = hash((char *)(functionName->Name));
 
-                if (_VirtualProtect((LPVOID)(&firstThunk->u1.Function), 8, PAGE_READWRITE, &oldProtect))
+                /* is the imported function LoadLibraryExW? */
+                if (h == LOADLIBRARYEXW_HASH)
                 {
-                    firstThunk->u1.Function = (DWORD_PTR)(_LoadLibraryExW);
-                    _VirtualProtect((LPVOID)(&firstThunk->u1.Function), 8, oldProtect, &oldProtect);
+                    /* yep, hook it */
+                    DWORD oldProtect = 0;
+                    if (_VirtualProtect((LPVOID)(&firstThunk->u1.Function), 8, PAGE_READWRITE, &oldProtect))
+                    {
+                        firstThunk->u1.Function = (DWORD_PTR)(_LoadLibraryExW);
+                        _VirtualProtect((LPVOID)(&firstThunk->u1.Function), 8, oldProtect, &oldProtect);
+                    }
+
+                    break;
                 }
+
+                ++originalFirstThunk;
+                ++firstThunk;
             }
 
-            ++originalFirstThunk;
-            ++firstThunk;
+            importDescriptor++;
         }
-
-        importDescriptor++;
     }
 
+    /* now return the module */
     return result;
 }
 

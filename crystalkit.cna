@@ -47,6 +47,11 @@ set POSTEX_RDLL_GENERATE {
     $postex = $2;
     $arch   = $3;
 
+    if ($arch eq "x86") {
+        warn("Crystal Kit is x64 only");
+        return $null;
+    }
+
     # get path to spec file
     $file_path = getFileProper(script_resource("postex-udrl"), "loader.spec");
 

@@ -30,4 +30,4 @@ There are lots of improvements that can be made to this codebase.  Some that com
 - [x] Don't use RWX memory.
 - [ ] Add GMA & GPA patching to the postex loader (`smartinject` is not yet supported in `stage` for prepended loaders).
 - [ ] Add AMSI & ETW bypasses to the postex loader.
-- [ ] Add memory freeing code on ExitThread.
+- [x] Add memory freeing code on ExitThread.

@@ -38,7 +38,11 @@
 
 DECLSPEC_IMPORT HMODULE           WINAPI KERNEL32$GetModuleHandleA       (LPCSTR);
 DECLSPEC_IMPORT PRUNTIME_FUNCTION WINAPI KERNEL32$RtlLookupFunctionEntry (DWORD64, PDWORD64, PUNWIND_HISTORY_TABLE);
+DECLSPEC_IMPORT HANDLE            WINAPI KERNEL32$CreateTimerQueue       ();
+DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$CreateTimerQueueTimer  (PHANDLE, HANDLE, WAITORTIMERCALLBACK, PVOID, DWORD, DWORD, ULONG);
+DECLSPEC_IMPORT VOID              WINAPI KERNEL32$RtlCaptureContext      (PCONTEXT);
 DECLSPEC_IMPORT ULONG             NTAPI  NTDLL$RtlRandomEx               (PULONG);
+DECLSPEC_IMPORT ULONG             NTAPI  NTDLL$NtContinue                (PCONTEXT, BOOLEAN);
 
 DECLSPEC_IMPORT int       WINAPIV MSVCRT$_wcsicmp (const wchar_t *, const wchar_t *);
 DECLSPEC_IMPORT wchar_t * WINAPIV MSVCRT$wcsrchr  (const wchar_t *, wchar_t);
@@ -398,4 +402,26 @@ ULONG_PTR draugr(PFUNCTION_CALL functionCall)
     }
 
     return (ULONG_PTR)(NULL);
+}
+
+void copyContext(CONTEXT * dst, CONTEXT * src)
+{
+    dst->ContextFlags = src->ContextFlags;
+    dst->Rax          = src->Rax;
+    dst->Rcx          = src->Rcx;
+    dst->Rdx          = src->Rdx;
+    dst->Rbx          = src->Rbx;
+    dst->Rsp          = src->Rsp;
+    dst->Rbp          = src->Rbp;
+    dst->Rsi          = src->Rsi;
+    dst->Rdi          = src->Rdi;
+    dst->R8           = src->R8;
+    dst->R9           = src->R9;
+    dst->R10          = src->R10;
+    dst->R11          = src->R11;
+    dst->R12          = src->R12;
+    dst->R13          = src->R13;
+    dst->R14          = src->R14;
+    dst->R15          = src->R15;
+    dst->Rip          = src->Rip;
 }

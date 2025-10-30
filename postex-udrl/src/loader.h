@@ -46,7 +46,7 @@ typedef struct {
     char code[16384];
     #else
     char data[4096];
-    char code[12288];
+    char code[16384];
     #endif
 } PICO;
 

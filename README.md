@@ -9,13 +9,15 @@ This repo is a technical and social experiment to see if replacing Cobalt Strike
 ```text
 stage {
     set rdll_loader "PrependLoader";
-    set sleep_mask "false";
-    set cleanup "true";
+    set sleep_mask  "false";
+    set cleanup     "true";
+    
     transform-obfuscate { }
 }
 
 post-ex {
-    set cleanup "true";
+    set cleanup     "true";
+    set smartinject "true";
 }
 ```
 
@@ -28,6 +30,6 @@ There are lots of improvements that can be made to this codebase.  Some that com
 
 - [x] Add BUD-style structures to track memory allocations.
 - [x] Don't use RWX memory.
-- [ ] Add GMA & GPA patching to the postex loader (`smartinject` is not yet supported in `stage` for prepended loaders).
+- [x] Add GMA & GPA patching to the postex loader (`smartinject` is not yet supported in `stage` for prepended loaders).
 - [x] Add AMSI ~~& ETW~~ bypass~~es~~ to the postex loader.
 - [x] Add memory freeing code on ExitThread.

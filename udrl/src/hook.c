@@ -562,7 +562,17 @@ DECLSPEC_NORETURN VOID WINAPI _ExitThread(DWORD dwExitCode)
     dprintf(" -> dwExitCode : %d\n", dwExitCode);
     #endif
 
-    if (bypassCfg(NTDLL$NtContinue))
+    /* is cfg enabled? */
+    BOOL cfgEnabled = CfgEnabled();
+
+    if (cfgEnabled) {
+        /* try to bypass it at NtContinue */
+        if (BypassCfg(NTDLL$NtContinue)) {
+            cfgEnabled = FALSE;
+        }
+    }
+
+    if (!cfgEnabled)
     {
         CONTEXT ctx;
         memset(&ctx, 0, sizeof(CONTEXT));
@@ -574,42 +584,40 @@ DECLSPEC_NORETURN VOID WINAPI _ExitThread(DWORD dwExitCode)
 
         hTimerQueue = KERNEL32$CreateTimerQueue();
 
-         if (KERNEL32$CreateTimerQueueTimer(&hNewTimer, hTimerQueue, (WAITORTIMERCALLBACK)(KERNEL32$RtlCaptureContext), &ctx, 0, 0, WT_EXECUTEINTIMERTHREAD))
-         {
-             Sleep(1000);
+        if (KERNEL32$CreateTimerQueueTimer(&hNewTimer, hTimerQueue, (WAITORTIMERCALLBACK)(KERNEL32$RtlCaptureContext), &ctx, 0, 0, WT_EXECUTEINTIMERTHREAD))
+        {
+            Sleep(1000);
             
-             if (ctx.Rip != 0)
-             {
-                CONTEXT * dllFree  = (CONTEXT *)_VirtualAlloc(NULL, sizeof(CONTEXT), MEM_COMMIT, PAGE_READWRITE);
-                CONTEXT * hookFree = (CONTEXT *)_VirtualAlloc(NULL, sizeof(CONTEXT), MEM_COMMIT, PAGE_READWRITE);
-                CONTEXT * picFree  = (CONTEXT *)_VirtualAlloc(NULL, sizeof(CONTEXT), MEM_COMMIT, PAGE_READWRITE);
+            if (ctx.Rip != 0)
+            {
+                HANDLE   hHeap   = KERNEL32$GetProcessHeap();
+                PCONTEXT ctxFree = (PCONTEXT)KERNEL32$HeapAlloc(hHeap, HEAP_ZERO_MEMORY, sizeof(CONTEXT) * 3);
 
-                /* no idea why memcpy crashes sometimes */
-                copyContext(dllFree, &ctx);
-                copyContext(hookFree, &ctx);
-                copyContext(picFree, &ctx);
+                for (int i = 0; i < 3; i++) { 
+                    memcpy(&ctxFree[i], &ctx, sizeof(CONTEXT));
+                }
 
-                dllFree->Rsp -= sizeof(PVOID);
-                dllFree->Rip = (DWORD64)(VirtualFree);
-                dllFree->Rcx = (DWORD64)(g_layout.dll.baseAddress);
-                dllFree->Rdx = (DWORD64)(0);
-                dllFree->R8  = (DWORD64)(MEM_RELEASE);
+                ctxFree[0].Rsp -= sizeof(PVOID);
+                ctxFree[0].Rip = (DWORD64)(VirtualFree);
+                ctxFree[0].Rcx = (DWORD64)(g_layout.dll.baseAddress);
+                ctxFree[0].Rdx = (DWORD64)(0);
+                ctxFree[0].R8  = (DWORD64)(MEM_RELEASE);
 
-                hookFree->Rsp -= sizeof(PVOID);
-                hookFree->Rip = (DWORD64)(VirtualFree);
-                hookFree->Rcx = (DWORD64)(g_layout.hooks.baseAddress);
-                hookFree->Rdx = (DWORD64)(0);
-                hookFree->R8  = (DWORD64)(MEM_RELEASE);
+                ctxFree[1].Rsp -= sizeof(PVOID);
+                ctxFree[1].Rip = (DWORD64)(VirtualFree);
+                ctxFree[1].Rcx = (DWORD64)(g_layout.hooks.baseAddress);
+                ctxFree[1].Rdx = (DWORD64)(0);
+                ctxFree[1].R8  = (DWORD64)(MEM_RELEASE);
 
-                picFree->Rsp -= sizeof(PVOID);
-                picFree->Rip = (DWORD64)(VirtualFree);
-                picFree->Rcx = (DWORD64)(g_layout.pic.baseAddress);
-                picFree->Rdx = (DWORD64)(0);
-                picFree->R8  = (DWORD64)(MEM_RELEASE);
+                ctxFree[2].Rsp -= sizeof(PVOID);
+                ctxFree[2].Rip = (DWORD64)(VirtualFree);
+                ctxFree[2].Rcx = (DWORD64)(g_layout.pic.baseAddress);
+                ctxFree[2].Rdx = (DWORD64)(0);
+                ctxFree[2].R8  = (DWORD64)(MEM_RELEASE);
 
-                KERNEL32$CreateTimerQueueTimer(&hNewTimer, hTimerQueue, (WAITORTIMERCALLBACK)(NTDLL$NtContinue), dllFree,  100, 0, WT_EXECUTEINTIMERTHREAD);
-                KERNEL32$CreateTimerQueueTimer(&hNewTimer, hTimerQueue, (WAITORTIMERCALLBACK)(NTDLL$NtContinue), hookFree, 200, 0, WT_EXECUTEINTIMERTHREAD);
-                KERNEL32$CreateTimerQueueTimer(&hNewTimer, hTimerQueue, (WAITORTIMERCALLBACK)(NTDLL$NtContinue), picFree,  300, 0, WT_EXECUTEINTIMERTHREAD);
+                KERNEL32$CreateTimerQueueTimer(&hNewTimer, hTimerQueue, (WAITORTIMERCALLBACK)(NTDLL$NtContinue), &ctxFree[0], 500, 0, WT_EXECUTEINTIMERTHREAD);
+                KERNEL32$CreateTimerQueueTimer(&hNewTimer, hTimerQueue, (WAITORTIMERCALLBACK)(NTDLL$NtContinue), &ctxFree[1], 500, 0, WT_EXECUTEINTIMERTHREAD);
+                KERNEL32$CreateTimerQueueTimer(&hNewTimer, hTimerQueue, (WAITORTIMERCALLBACK)(NTDLL$NtContinue), &ctxFree[2], 500, 0, WT_EXECUTEINTIMERTHREAD);
             }
         }
     }

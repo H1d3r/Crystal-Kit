@@ -35,12 +35,15 @@
 #define draugrArg(i) (ULONG_PTR)functionCall->args[i]
 
 #define memset(x, y, z) __stosb((unsigned char *)x, y, z);
+#define memcpy(x, y, z) __movsb((unsigned char *)x, (unsigned char *)y, z);
 
 DECLSPEC_IMPORT HMODULE           WINAPI KERNEL32$GetModuleHandleA       (LPCSTR);
 DECLSPEC_IMPORT PRUNTIME_FUNCTION WINAPI KERNEL32$RtlLookupFunctionEntry (DWORD64, PDWORD64, PUNWIND_HISTORY_TABLE);
 DECLSPEC_IMPORT HANDLE            WINAPI KERNEL32$CreateTimerQueue       ();
 DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$CreateTimerQueueTimer  (PHANDLE, HANDLE, WAITORTIMERCALLBACK, PVOID, DWORD, DWORD, ULONG);
 DECLSPEC_IMPORT VOID              WINAPI KERNEL32$RtlCaptureContext      (PCONTEXT);
+DECLSPEC_IMPORT HANDLE            WINAPI KERNEL32$GetProcessHeap         ();
+DECLSPEC_IMPORT LPVOID            WINAPI KERNEL32$HeapAlloc              (HANDLE, DWORD, SIZE_T);
 DECLSPEC_IMPORT ULONG             NTAPI  NTDLL$RtlRandomEx               (PULONG);
 DECLSPEC_IMPORT ULONG             NTAPI  NTDLL$NtContinue                (PCONTEXT, BOOLEAN);
 

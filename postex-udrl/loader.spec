@@ -5,9 +5,7 @@ author   "Daniel Duggan (@_RastaMouse)"
 x64:
 	load "bin/loader.x64.o"
 		make pic +gofirst +optimize +disco +mutate
-		patch "pGetModuleHandle" $GMH
-		patch "pGetProcAddress"  $GPA
-		dfr "resolve" "strings"
+		dfr "resolve" "ror13"
 		mergelib "../libtcg.x64.zip"
 		mergelib "../libtp.x64.zip"
 	
@@ -22,7 +20,7 @@ x64:
 	load "bin/hook.x64.o"
 		make object +optimize +disco
 		mergelib "../libtcg.x64.zip"
-		import "LoadLibraryA, GetProcAddress, SpoofStub, LoadLibraryW, LoadLibraryExW, VirtualAlloc, VirtualAllocEx, VirtualProtect, VirtualProtectEx, VirtualFree, VirtualQuery, GetThreadContext, SetThreadContext, ResumeThread, CreateThread, CreateRemoteThread, OpenProcess, OpenThread, ExitThread, CloseHandle, Sleep, CreateFileMappingA, MapViewOfFile, UnmapViewOfFile, DuplicateHandle, ReadProcessMemory, WriteProcessMemory, CreateProcessA"
+		import "LoadLibraryA, GetProcAddress, SpoofStub"
 		export
 		link "hooks"
 

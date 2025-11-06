@@ -62,6 +62,7 @@
 #define EXITTHREAD_HASH              0x60E0CEEF
 #define CREATEPROCESSA_HASH          0x16B3FE72
 #define SLEEP_HASH                   0xDB2D49B0
+#define COCREATEINSTANCE_HASH        0x6E26C880
 
 #define HASH_KEY 13
 

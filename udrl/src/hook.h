@@ -37,6 +37,29 @@
 #define memset(x, y, z) __stosb((unsigned char *)x, y, z);
 #define memcpy(x, y, z) __movsb((unsigned char *)x, (unsigned char *)y, z);
 
+DECLSPEC_IMPORT LPVOID            WINAPI KERNEL32$VirtualAlloc           (LPVOID, SIZE_T, DWORD, DWORD);
+DECLSPEC_IMPORT LPVOID            WINAPI KERNEL32$VirtualAllocEx         (HANDLE, LPVOID, SIZE_T, DWORD, DWORD);
+DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$VirtualProtect         (LPVOID, SIZE_T, DWORD, PDWORD);
+DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$VirtualProtectEx       (HANDLE, LPVOID, SIZE_T, DWORD, PDWORD);
+DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$VirtualFree            (LPVOID, SIZE_T, DWORD);
+DECLSPEC_IMPORT SIZE_T            WINAPI KERNEL32$VirtualQuery           (LPCVOID, PMEMORY_BASIC_INFORMATION, SIZE_T);
+DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$GetThreadContext       (HANDLE, LPCONTEXT);
+DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$SetThreadContext       (HANDLE, const CONTEXT *);
+DECLSPEC_IMPORT DWORD             WINAPI KERNEL32$ResumeThread           (HANDLE);
+DECLSPEC_IMPORT HANDLE            WINAPI KERNEL32$CreateThread           (LPSECURITY_ATTRIBUTES, SIZE_T, LPTHREAD_START_ROUTINE, LPVOID, DWORD, LPDWORD);
+DECLSPEC_IMPORT HANDLE            WINAPI KERNEL32$CreateRemoteThread     (HANDLE, LPSECURITY_ATTRIBUTES, SIZE_T, LPTHREAD_START_ROUTINE, LPVOID, DWORD, LPDWORD);
+DECLSPEC_IMPORT HANDLE            WINAPI KERNEL32$OpenProcess            (DWORD, BOOL, DWORD);
+DECLSPEC_IMPORT HANDLE            WINAPI KERNEL32$OpenThread             (DWORD, BOOL, DWORD);
+DECLSPEC_IMPORT VOID              WINAPI KERNEL32$ExitThread             (DWORD);
+DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$CloseHandle            (HANDLE);
+DECLSPEC_IMPORT VOID              WINAPI KERNEL32$Sleep                  (DWORD);
+DECLSPEC_IMPORT HANDLE            WINAPI KERNEL32$CreateFileMappingA     (HANDLE, LPSECURITY_ATTRIBUTES, DWORD, DWORD, DWORD, LPCSTR);
+DECLSPEC_IMPORT LPVOID            WINAPI KERNEL32$MapViewOfFile          (HANDLE, DWORD, DWORD, DWORD, SIZE_T);
+DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$UnmapViewOfFile        (LPCVOID);
+DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$DuplicateHandle        (HANDLE, HANDLE, HANDLE, LPHANDLE, DWORD, BOOL, DWORD);
+DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$ReadProcessMemory      (HANDLE, LPCVOID, LPVOID, SIZE_T, SIZE_T *);
+DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$WriteProcessMemory     (HANDLE, LPVOID, LPCVOID, SIZE_T, SIZE_T *);
+DECLSPEC_IMPORT BOOL              WINAPI KERNEL32$CreateProcessA         (LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION);
 DECLSPEC_IMPORT HMODULE           WINAPI KERNEL32$GetModuleHandleA       (LPCSTR);
 DECLSPEC_IMPORT PRUNTIME_FUNCTION WINAPI KERNEL32$RtlLookupFunctionEntry (DWORD64, PDWORD64, PUNWIND_HISTORY_TABLE);
 DECLSPEC_IMPORT HANDLE            WINAPI KERNEL32$CreateTimerQueue       ();
@@ -396,26 +419,4 @@ ULONG_PTR draugr(PFUNCTION_CALL functionCall)
     }
 
     return (ULONG_PTR)(NULL);
-}
-
-void copyContext(CONTEXT * dst, CONTEXT * src)
-{
-    dst->ContextFlags = src->ContextFlags;
-    dst->Rax          = src->Rax;
-    dst->Rcx          = src->Rcx;
-    dst->Rdx          = src->Rdx;
-    dst->Rbx          = src->Rbx;
-    dst->Rsp          = src->Rsp;
-    dst->Rbp          = src->Rbp;
-    dst->Rsi          = src->Rsi;
-    dst->Rdi          = src->Rdi;
-    dst->R8           = src->R8;
-    dst->R9           = src->R9;
-    dst->R10          = src->R10;
-    dst->R11          = src->R11;
-    dst->R12          = src->R12;
-    dst->R13          = src->R13;
-    dst->R14          = src->R14;
-    dst->R15          = src->R15;
-    dst->Rip          = src->Rip;
 }

@@ -21,7 +21,7 @@ x64:
 		make object +optimize +disco
 		mergelib "../libtcg.x64.zip"
 		patch "xorkey" $KEY
-		import "LoadLibraryA, GetProcAddress, SpoofStub, VirtualAlloc, VirtualAllocEx, VirtualProtect, VirtualProtectEx, VirtualFree, VirtualQuery, GetThreadContext, SetThreadContext, ResumeThread, CreateThread, CreateRemoteThread, OpenProcess, OpenThread, ExitThread, CloseHandle, Sleep, CreateFileMappingA, MapViewOfFile, UnmapViewOfFile, DuplicateHandle, ReadProcessMemory, WriteProcessMemory, CreateProcessA"
+		import "LoadLibraryA, GetProcAddress, SpoofStub"
 		export
 		link "hooks"
 

@@ -42,7 +42,7 @@ set BEACON_RDLL_SIZE {
 }
 
 set POSTEX_RDLL_GENERATE {   
-    local('$postex $arch $file_path $spec $hashMap $final');
+    local('$postex $arch $file_path $spec $final');
    
     $postex = $2;
     $arch   = $3;
@@ -59,13 +59,9 @@ set POSTEX_RDLL_GENERATE {
     print_info("Parsing  $+ $file_path $+ ...");
     $spec = [LinkSpec Parse: $file_path];
 
-    $hashMap = [new HashMap];
-    [$hashMap put: "\$GMH", cast($5, 'b')];
-    [$hashMap put: "\$GPA", cast($6, 'b')];
-
     # apply the spec
     print_info("Applying spec...");
-    $final = [$spec run: $postex, $hashMap];
+    $final = [$spec run: $postex, [new HashMap]];
 
     if (strlen($final) == 0) {
        warn("Failed to build package");

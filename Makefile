@@ -1,7 +1,9 @@
 all:
-	cd udrl && make $@
-	cd postex-udrl && make $@
+	cd loader && make $@
+	cd local-loader && make $@
+	cd postex-loader && make $@
 
 clean:
-	cd udrl && make $@
-	cd postex-udrl && make $@
+	cd loader && make $@
+	cd local-loader && make $@
+	cd postex-loader && make $@

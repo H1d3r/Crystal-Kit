@@ -108,15 +108,7 @@ void init_frame_info ( SYNTHETIC_STACK_FRAME * frame )
     frame->Frame2.FunctionAddress = ( PVOID ) GetProcAddress ( ( HMODULE ) frame2_module, "RtlUserThreadStart" );
     frame->Frame2.Offset          = 0x2c;
 
-    // frame->Gadget                = KERNEL32$GetModuleHandleA ( "KernelBase.dll" );
-
-    PVOID dfshim = KERNEL32$GetModuleHandleA ( "dfshim.dll" );
-
-    if ( dfshim != NULL ) {
-        frame->Gadget = dfshim;
-    } else {
-        frame->Gadget = LoadLibraryA ( "dfshim.dll" );
-    }
+    frame->Gadget                 = KERNEL32$GetModuleHandleA ( "KernelBase.dll" );
 }
 
 BOOL get_text_section_size ( PVOID module, PDWORD virtual_address, PDWORD size )
@@ -282,16 +274,12 @@ PVOID find_gadget( PVOID module )
             /* x64 opcodes are ff 23 */
             if ( ( ( PBYTE ) module_text_section ) [ i ] == 0xFF && ( ( PBYTE ) module_text_section ) [ i + 1 ] == 0x23 )
             {
-                /* check for a call before the gadget */
-                if ( ( ( PBYTE ) module_text_section ) [ i - 5 ] == 0xE8 )
-                {
-                    gadget_list [ counter ] = ( PVOID ) ( ( UINT_PTR ) module_text_section + i );
-                    counter++;
+                gadget_list [ counter ] = ( PVOID ) ( ( UINT_PTR ) module_text_section + i );
+                counter++;
 
-                    if ( counter == 15 ) {
-                        break;
-                    }
-                }            
+                if ( counter == 15 ) {
+                    break;
+                }          
             }
         }
 

@@ -1,7 +1,6 @@
 #include <windows.h>
 #include "memory.h"
 #include "cfg.h"
-#include "spoof.h"
 #include "tcg.h"
 
 DECLSPEC_IMPORT HANDLE WINAPI KERNEL32$CreateTimerQueue      ( );
@@ -16,9 +15,6 @@ DECLSPEC_IMPORT BOOL   WINAPI KERNEL32$VirtualFree           ( LPVOID, SIZE_T, D
 DECLSPEC_IMPORT ULONG  NTAPI  NTDLL$NtContinue               ( CONTEXT *, BOOLEAN );
 
 #define memcpy(x, y, z) __movsb ( ( unsigned char * ) x, ( unsigned char * ) y, z );
-
-#define NTDLL_HASH       0x3CFA685D
-#define VIRTUALFREE_HASH 0x30633AC
 
 void cleanup_memory ( MEMORY_LAYOUT * memory )
 {

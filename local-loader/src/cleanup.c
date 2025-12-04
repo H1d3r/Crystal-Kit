@@ -17,9 +17,6 @@ DECLSPEC_IMPORT ULONG  NTAPI  NTDLL$NtContinue               ( CONTEXT *, BOOLEA
 
 #define memcpy(x, y, z) __movsb ( ( unsigned char * ) x, ( unsigned char * ) y, z );
 
-#define NTDLL_HASH       0x3CFA685D
-#define VIRTUALFREE_HASH 0x30633AC
-
 void cleanup_memory ( MEMORY_LAYOUT * memory )
 {
     /* is cfg enabled? */

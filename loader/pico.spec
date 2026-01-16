@@ -35,6 +35,7 @@ x64:
     exportfunc "setup_memory" "__tag_setup_memory"
 
     # hook functions in the DLL
+    addhook "WININET$HttpSendRequestA"    "_HttpSendRequestA"
     addhook "WININET$InternetOpenA"       "_InternetOpenA"
     addhook "WININET$InternetConnectA"    "_InternetConnectA"
     addhook "KERNEL32$CloseHandle"        "_CloseHandle"

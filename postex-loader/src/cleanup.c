@@ -5,11 +5,11 @@
 
 DECLSPEC_IMPORT HANDLE WINAPI KERNEL32$CreateTimerQueue      ( );
 DECLSPEC_IMPORT BOOL   WINAPI KERNEL32$CreateTimerQueueTimer ( PHANDLE, HANDLE, WAITORTIMERCALLBACK, PVOID, DWORD, DWORD, ULONG );
-DECLSPEC_IMPORT VOID   WINAPI KERNEL32$ExitThread            ( DWORD );
+DECLSPEC_IMPORT void   WINAPI KERNEL32$ExitThread            ( DWORD );
 DECLSPEC_IMPORT HANDLE WINAPI KERNEL32$GetProcessHeap        ( );
 DECLSPEC_IMPORT LPVOID WINAPI KERNEL32$HeapAlloc             ( HANDLE, DWORD, SIZE_T );
-DECLSPEC_IMPORT VOID   WINAPI KERNEL32$RtlCaptureContext     ( PCONTEXT );
-DECLSPEC_IMPORT VOID   WINAPI KERNEL32$Sleep                 ( DWORD );
+DECLSPEC_IMPORT void   WINAPI KERNEL32$RtlCaptureContext     ( PCONTEXT );
+DECLSPEC_IMPORT void   WINAPI KERNEL32$Sleep                 ( DWORD );
 DECLSPEC_IMPORT BOOL   WINAPI KERNEL32$VirtualFree           ( LPVOID, SIZE_T, DWORD );
 DECLSPEC_IMPORT ULONG  NTAPI  NTDLL$NtContinue               ( CONTEXT *, BOOLEAN );
 
@@ -53,10 +53,12 @@ void cleanup_memory ( MEMORY_LAYOUT * memory )
             
         if ( ctx.Rip != 0 )
         {
+            #define CTX_COUNT 3
+            
             HANDLE    heap     = KERNEL32$GetProcessHeap ( );
-            CONTEXT * ctx_free = ( CONTEXT * ) KERNEL32$HeapAlloc ( heap, HEAP_ZERO_MEMORY, sizeof ( CONTEXT ) * 2 );
+            CONTEXT * ctx_free = ( CONTEXT * ) KERNEL32$HeapAlloc ( heap, HEAP_ZERO_MEMORY, sizeof ( CONTEXT ) * CTX_COUNT );
 
-            for ( int i = 0; i < 2; i++ ) { 
+            for ( int i = 0; i < CTX_COUNT; i++ ) { 
                 memcpy ( &ctx_free [ i ], &ctx, sizeof ( CONTEXT ) );
             }
 
@@ -72,16 +74,24 @@ void cleanup_memory ( MEMORY_LAYOUT * memory )
             ctx_free[ 0 ].Rdx = ( DWORD64 ) ( 0 );
             ctx_free[ 0 ].R8  = ( DWORD64 ) ( MEM_RELEASE );
 
-            /* this pico */
+            /* pico code */
             ctx_free[ 1 ].Rsp -= sizeof ( PVOID );
             ctx_free[ 1 ].Rip = ( DWORD64 ) ( KERNEL32$VirtualFree );
-            ctx_free[ 1 ].Rcx = ( DWORD64 ) ( memory->Pico.BaseAddress );
+            ctx_free[ 1 ].Rcx = ( DWORD64 ) ( memory->Pico.Code );
             ctx_free[ 1 ].Rdx = ( DWORD64 ) ( 0 );
             ctx_free[ 1 ].R8  = ( DWORD64 ) ( MEM_RELEASE );
+
+            /* pico data */
+            ctx_free[ 2 ].Rsp -= sizeof ( PVOID );
+            ctx_free[ 2 ].Rip = ( DWORD64 ) ( KERNEL32$VirtualFree );
+            ctx_free[ 2 ].Rcx = ( DWORD64 ) ( memory->Pico.Data );
+            ctx_free[ 2 ].Rdx = ( DWORD64 ) ( 0 );
+            ctx_free[ 2 ].R8  = ( DWORD64 ) ( MEM_RELEASE );
 
             /* give a decent delay so ExitThread has time to be called */
             KERNEL32$CreateTimerQueueTimer ( &timer, timer_queue, ( WAITORTIMERCALLBACK ) ( NTDLL$NtContinue ), &ctx_free [ 0 ], 500, 0, WT_EXECUTEINTIMERTHREAD );
             KERNEL32$CreateTimerQueueTimer ( &timer, timer_queue, ( WAITORTIMERCALLBACK ) ( NTDLL$NtContinue ), &ctx_free [ 1 ], 500, 0, WT_EXECUTEINTIMERTHREAD );
+            KERNEL32$CreateTimerQueueTimer ( &timer, timer_queue, ( WAITORTIMERCALLBACK ) ( NTDLL$NtContinue ), &ctx_free [ 2 ], 500, 0, WT_EXECUTEINTIMERTHREAD );
         }
     }
 }

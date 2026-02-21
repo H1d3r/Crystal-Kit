@@ -7,8 +7,7 @@ char xorkey [ 128 ] = { 1 };
 
 void apply_mask ( char * data, DWORD len )
 {
-    for ( DWORD i = 0; i < len; i++ )
-    {
+    for ( DWORD i = 0; i < len; i++ ) {
         data [ i ] ^= xorkey [ i % 128 ];
     }
 }
@@ -39,8 +38,7 @@ void xor_section ( MEMORY_SECTION * section, BOOL mask )
         }
     }
 
-    if ( is_writeable ( section->CurrentProtect ) )
-    {
+    if ( is_writeable ( section->CurrentProtect ) ) {
         apply_mask ( section->BaseAddress, section->Size );
     }
 
@@ -56,15 +54,27 @@ void xor_section ( MEMORY_SECTION * section, BOOL mask )
     }
 }
 
-void xor_region ( MEMORY_REGION * region, BOOL mask )
+void xor_dll ( DLL_MEMORY * region, BOOL mask )
 {
-    for ( int i = 0; i < 20; i++ )
-    {
+    for ( size_t i = 0; i < region->Count; i++ ) {
         xor_section ( &region->Sections [ i ], mask );
     }
 }
 
+void xor_heap ( HEAP_MEMORY * heap )
+{
+    for ( size_t i = 0; i < heap->Count; i++ )
+    {
+        HEAP_RECORD * record = &heap->Records [ i ];
+
+        /* these are already RW */
+        apply_mask ( record->Address, record->Size );
+    }
+    
+}
+
 void mask_memory ( MEMORY_LAYOUT * memory, BOOL mask )
 {
-    xor_region ( &memory->Dll, mask );
+    xor_dll  ( &memory->Dll, mask );
+    xor_heap ( &memory->Heap );
 }

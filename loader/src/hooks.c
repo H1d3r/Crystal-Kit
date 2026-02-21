@@ -1,13 +1,14 @@
+#include <winsock2.h>
 #include <windows.h>
 #include <wininet.h>
 #include <combaseapi.h>
-#include "tcg.h"
-#include "memory.h"
 #include "spoof.h"
 
 DECLSPEC_IMPORT HINTERNET WINAPI WININET$HttpSendRequestA    ( HINTERNET, LPCSTR, DWORD, LPVOID, DWORD );
 DECLSPEC_IMPORT HINTERNET WINAPI WININET$InternetConnectA    ( HINTERNET, LPCSTR, INTERNET_PORT, LPCSTR, LPCSTR, DWORD, DWORD, DWORD_PTR );
 DECLSPEC_IMPORT HINTERNET WINAPI WININET$InternetOpenA       ( LPCSTR, DWORD, LPCSTR, LPCSTR, DWORD );
+DECLSPEC_IMPORT SOCKET    WINAPI WS2_32$WSASocketA           ( int, int, int, LPWSAPROTOCOL_INFOA, GROUP, DWORD );
+DECLSPEC_IMPORT int       WINAPI WS2_32$WSAStartup           ( WORD, LPWSADATA );
 DECLSPEC_IMPORT BOOL      WINAPI KERNEL32$CloseHandle        ( HANDLE );
 DECLSPEC_IMPORT HANDLE    WINAPI KERNEL32$CreateFileMappingA ( HANDLE, LPSECURITY_ATTRIBUTES, DWORD, DWORD, DWORD, LPCSTR );
 DECLSPEC_IMPORT BOOL      WINAPI KERNEL32$CreateProcessA     ( LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION );
@@ -21,7 +22,7 @@ DECLSPEC_IMPORT HANDLE    WINAPI KERNEL32$OpenProcess        ( DWORD, BOOL, DWOR
 DECLSPEC_IMPORT HANDLE    WINAPI KERNEL32$OpenThread         ( DWORD, BOOL, DWORD );
 DECLSPEC_IMPORT BOOL      WINAPI KERNEL32$ReadProcessMemory  ( HANDLE, LPCVOID, LPVOID, SIZE_T, SIZE_T * );
 DECLSPEC_IMPORT DWORD     WINAPI KERNEL32$ResumeThread       ( HANDLE );
-DECLSPEC_IMPORT VOID      WINAPI KERNEL32$RtlCaptureContext  ( PCONTEXT );
+DECLSPEC_IMPORT void      WINAPI KERNEL32$RtlCaptureContext  ( PCONTEXT );
 DECLSPEC_IMPORT BOOL      WINAPI KERNEL32$SetThreadContext   ( HANDLE, const CONTEXT * );
 DECLSPEC_IMPORT BOOL      WINAPI KERNEL32$UnmapViewOfFile    ( LPCVOID );
 DECLSPEC_IMPORT LPVOID    WINAPI KERNEL32$VirtualAlloc       ( LPVOID, SIZE_T, DWORD, DWORD );
@@ -38,8 +39,9 @@ BOOL WINAPI _HttpSendRequestA ( HINTERNET hRequest, LPCSTR lpszHeaders, DWORD dw
 {
     FUNCTION_CALL call = { 0 };
 
-    call.ptr        = ( PVOID ) ( WININET$HttpSendRequestA );
-    call.argc       = 5;
+    call.ptr  = ( PVOID ) ( WININET$HttpSendRequestA );
+    call.argc = 5;
+
     call.args [ 0 ] = spoof_arg ( hRequest );
     call.args [ 1 ] = spoof_arg ( lpszHeaders );
     call.args [ 2 ] = spoof_arg ( dwHeadersLength );
@@ -53,8 +55,9 @@ HINTERNET WINAPI _InternetOpenA ( LPCSTR lpszAgent, DWORD dwAccessType, LPCSTR l
 {
     FUNCTION_CALL call = { 0 };
 
-    call.ptr        = ( PVOID ) ( WININET$InternetOpenA );
-    call.argc       = 5;
+    call.ptr  = ( PVOID ) ( WININET$InternetOpenA );
+    call.argc = 5;
+
     call.args [ 0 ] = spoof_arg ( lpszAgent );
     call.args [ 1 ] = spoof_arg ( dwAccessType );
     call.args [ 2 ] = spoof_arg ( lpszProxy );
@@ -68,8 +71,9 @@ HINTERNET WINAPI _InternetConnectA ( HINTERNET hInternet, LPCSTR lpszServerName,
 {
     FUNCTION_CALL call = { 0 };
 
-    call.ptr        = ( PVOID ) ( WININET$InternetConnectA );
-    call.argc       = 8;
+    call.ptr  = ( PVOID ) ( WININET$InternetConnectA );
+    call.argc = 8;
+
     call.args [ 0 ] = spoof_arg ( hInternet );
     call.args [ 1 ] = spoof_arg ( lpszServerName );
     call.args [ 2 ] = spoof_arg ( nServerPort );
@@ -80,6 +84,36 @@ HINTERNET WINAPI _InternetConnectA ( HINTERNET hInternet, LPCSTR lpszServerName,
     call.args [ 7 ] = spoof_arg ( dwContext );
 
     return ( HINTERNET ) spoof_call ( &call );
+}
+
+int WINAPI _WSAStartup ( WORD wVersionRequested, LPWSADATA lpWSAData )
+{
+    FUNCTION_CALL call = { 0 };
+    
+    call.ptr  = ( PVOID ) ( WS2_32$WSAStartup );
+    call.argc = 2;
+
+    call.args [ 0 ] = spoof_arg ( wVersionRequested );
+    call.args [ 1 ] = spoof_arg ( lpWSAData );
+    
+    return ( int ) spoof_call ( &call );
+}
+
+SOCKET WINAPI _WSASocketA ( int af, int type, int protocol, LPWSAPROTOCOL_INFOA lpProtocolInfo, GROUP g, DWORD dwFlags )
+{
+    FUNCTION_CALL call = { 0 };
+
+    call.ptr  = ( PVOID ) ( WS2_32$WSASocketA );
+    call.argc = 6;
+
+    call.args [ 0 ] = spoof_arg ( af );
+    call.args [ 1 ] = spoof_arg ( type );
+    call.args [ 2 ] = spoof_arg ( protocol );
+    call.args [ 3 ] = spoof_arg ( lpProtocolInfo );
+    call.args [ 4 ] = spoof_arg ( g );
+    call.args [ 5 ] = spoof_arg ( dwFlags );
+
+    return ( SOCKET ) spoof_call ( &call );
 }
 
 BOOL WINAPI _CloseHandle ( HANDLE hObject )
@@ -111,7 +145,7 @@ HANDLE WINAPI _CreateFileMappingA ( HANDLE hFile, LPSECURITY_ATTRIBUTES lpFileMa
     return ( HANDLE ) spoof_call ( &call );
 }
 
-BOOL _CreateProcessA ( LPCSTR lpApplicationName, LPSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCSTR lpCurrentDirectory, LPSTARTUPINFOA lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation )
+BOOL WINAPI _CreateProcessA ( LPCSTR lpApplicationName, LPSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCSTR lpCurrentDirectory, LPSTARTUPINFOA lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation )
 {
     FUNCTION_CALL call = { 0 };
 

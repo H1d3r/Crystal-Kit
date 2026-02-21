@@ -1,9 +1,13 @@
 x64:
     load "bin/loader.x64.o"
-        make pic +gofirst +optimize
+        make pic +gofirst +optimize +disco
     
-    # merge pic services
-    run "services.spec"
+    # merge services
+    load "bin/services.x64.o"
+        merge
+
+    dfr "resolve" "ror13"
+    mergelib "../libtcg.x64.zip"
 
     # merge hooks into the loader
     load "bin/hooks.x64.o"
@@ -25,6 +29,7 @@ x64:
 
     # mask & link the dll
     generate $MASK 128
+    
     push $DLL
         xor $MASK
         preplen

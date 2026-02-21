@@ -1,5 +1,4 @@
 #include <windows.h>
-#include "cfg.h"
 
 #define NT_SUCCESS(status) ( ( NTSTATUS ) ( status ) >= 0 )
 #define NtCurrentProcess() ( ( HANDLE ) ( ULONG_PTR ) -1 )

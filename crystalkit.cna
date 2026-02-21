@@ -9,7 +9,7 @@ sub print_info {
 
 set BEACON_RDLL_GENERATE
 {
-    local ( '$beacon $arch $spec_path $spec $final' );
+    local ( '$beacon $arch $spec_path $spec $cap $final' );
 
     $beacon = $2;
     $arch   = $3;
@@ -24,7 +24,8 @@ set BEACON_RDLL_GENERATE
 
     $spec_path = getFileProper ( script_resource ( "loader" ), "loader.spec" );
     $spec      = [ LinkSpec Parse: $spec_path ];
-    $final     = [ $spec run: $beacon, [ new HashMap ] ];
+    $cap       = [ Capability Parse: cast ( $beacon, 'b' ) ];
+    $final     = [ $spec run: $cap, [ new HashMap ] ];
 
     if ( strlen ( $final ) == 0 )
     {
@@ -41,7 +42,7 @@ set BEACON_RDLL_SIZE {
 
 set BEACON_RDLL_GENERATE_LOCAL
 {
-    local ( '$beacon $arch $gmh $gpa $spec_path $spec $hash_map $final' );
+    local ( '$beacon $arch $gmh $gpa $spec_path $spec $cap $hash_map $final' );
 
     $beacon = $2;
     $arch   = $3;
@@ -56,15 +57,16 @@ set BEACON_RDLL_GENERATE_LOCAL
 
     print_info ( "BEACON_RDLL_GENERATE_LOCAL" );
 
-    $spec_path = getFileProper ( script_resource ( "local-loader" ), "loader.spec" );
+    $spec_path = getFileProper ( script_resource ( "loader" ), "local-loader.spec" );
     $spec      = [ LinkSpec Parse: $spec_path ];
+    $cap       = [ Capability Parse: cast ( $beacon, 'b' ) ];
 
     $hash_map  = [ new HashMap ];
 
     [ $hash_map put: "\$GMH", cast ( $gmh, 'b' ) ];
     [ $hash_map put: "\$GPA", cast ( $gpa, 'b' ) ];
 
-    $final = [ $spec run: $beacon, $hash_map ];
+    $final = [ $spec run: $cap, $hash_map ];
 
     if ( strlen ( $final ) == 0 )
     {

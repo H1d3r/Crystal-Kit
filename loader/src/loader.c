@@ -1,7 +1,7 @@
 #include <windows.h>
 #include "loader.h"
-#include "tcg.h"
 #include "memory.h"
+#include "tcg.h"
 
 DECLSPEC_IMPORT LPVOID WINAPI KERNEL32$VirtualAlloc   ( LPVOID, SIZE_T, DWORD, DWORD );
 DECLSPEC_IMPORT BOOL   WINAPI KERNEL32$VirtualProtect ( LPVOID, SIZE_T, DWORD, PDWORD );
@@ -17,7 +17,7 @@ int __tag_setup_memory ( );
 typedef void ( * SETUP_HOOKS ) ( IMPORTFUNCS * funcs );
 typedef void ( * SETUP_MEMORY ) ( MEMORY_LAYOUT * layout );
 
-void fix_section_permissions ( DLLDATA * dll, char * src, char * dst, MEMORY_REGION * region )
+void fix_section_permissions ( DLLDATA * dll, char * src, char * dst, DLL_MEMORY * dll_memory )
 {
     DWORD                  section_count = dll->NtHeaders->FileHeader.NumberOfSections;
     IMAGE_SECTION_HEADER * section_hdr   = NULL;
@@ -59,14 +59,16 @@ void fix_section_permissions ( DLLDATA * dll, char * src, char * dst, MEMORY_REG
         KERNEL32$VirtualProtect ( section_dst, section_size, new_protect, &old_protect );
 
         /* track memory */
-        region->Sections[ i ].BaseAddress     = section_dst;
-        region->Sections[ i ].Size            = section_size;
-        region->Sections[ i ].CurrentProtect  = new_protect;
-        region->Sections[ i ].PreviousProtect = new_protect;
+        dll_memory->Sections[ i ].BaseAddress     = section_dst;
+        dll_memory->Sections[ i ].Size            = section_size;
+        dll_memory->Sections[ i ].CurrentProtect  = new_protect;
+        dll_memory->Sections[ i ].PreviousProtect = new_protect;
 
         /* advance to section */
         section_hdr++;
     }
+
+    dll_memory->Count = section_count;
 }
 
 void go ( )
@@ -80,32 +82,24 @@ void go ( )
     char * pico_src = GETRESOURCE ( _PICO_ );
 
     /* allocate memory for it */
-    PICO * pico_dst = ( PICO * ) KERNEL32$VirtualAlloc ( NULL, sizeof ( PICO ), MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN, PAGE_READWRITE );
+    char * pico_data = KERNEL32$VirtualAlloc ( NULL, PicoDataSize ( pico_src ), MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN, PAGE_READWRITE );
+    char * pico_code = KERNEL32$VirtualAlloc ( NULL, PicoCodeSize ( pico_src ), MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN, PAGE_READWRITE );
 
     /* load it into memory */
-    PicoLoad ( &funcs, pico_src, pico_dst->code, pico_dst->data );
+    PicoLoad ( &funcs, pico_src, pico_code, pico_data );
 
     /* make code section RX */
     DWORD old_protect;
-    KERNEL32$VirtualProtect ( pico_dst->code, PicoCodeSize ( pico_src ), PAGE_EXECUTE_READ, &old_protect );
+    KERNEL32$VirtualProtect ( pico_code, PicoCodeSize ( pico_src ), PAGE_EXECUTE_READ, &old_protect );
 
     /* begin tracking memory allocations */
     MEMORY_LAYOUT memory    = { 0 };
 
-    memory.Pico.BaseAddress = ( PVOID ) ( pico_dst );
-    memory.Pico.Size        = sizeof ( PICO );
-    
-    memory.Pico.Sections[ 0 ].BaseAddress     = ( PVOID ) ( pico_dst->data );
-    memory.Pico.Sections[ 0 ].Size            = PicoDataSize ( pico_src );
-    memory.Pico.Sections[ 0 ].CurrentProtect  = PAGE_READWRITE;
-    memory.Pico.Sections[ 0 ].PreviousProtect = PAGE_READWRITE;
-    memory.Pico.Sections[ 1 ].BaseAddress     = ( PVOID ) ( pico_dst->code );
-    memory.Pico.Sections[ 1 ].Size            = PicoCodeSize ( pico_src );
-    memory.Pico.Sections[ 1 ].CurrentProtect  = PAGE_EXECUTE_READ;
-    memory.Pico.Sections[ 1 ].PreviousProtect = PAGE_EXECUTE_READ;
+    memory.Pico.Data = pico_data;
+    memory.Pico.Code = pico_code;
 
     /* call setup_hooks to overwrite funcs.GetProcAddress */
-    ( ( SETUP_HOOKS ) PicoGetExport ( pico_src, pico_dst->code, __tag_setup_hooks ( ) ) ) ( &funcs );
+    ( ( SETUP_HOOKS ) PicoGetExport ( pico_src, pico_code, __tag_setup_hooks ( ) ) ) ( &funcs );
 
     /* now load the dll (it's masked) */
     RESOURCE * masked_dll = ( RESOURCE * ) GETRESOURCE ( _DLL_ );
@@ -133,7 +127,7 @@ void go ( )
     fix_section_permissions ( &dll_data, dll_src, dll_dst, &memory.Dll );
 
     /* call setup_memory to give PICO the memory info */
-    ( ( SETUP_MEMORY ) PicoGetExport ( pico_src, pico_dst->code, __tag_setup_memory ( ) ) ) ( &memory );
+    ( ( SETUP_MEMORY ) PicoGetExport ( pico_src, pico_code, __tag_setup_memory ( ) ) ) ( &memory );
 
     /* now run the DLL */
     DLLMAIN_FUNC entry_point = EntryPoint ( &dll_data, dll_dst );

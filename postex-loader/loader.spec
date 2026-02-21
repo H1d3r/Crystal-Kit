@@ -2,9 +2,14 @@ x64:
     load "bin/loader.x64.o"
         make pic +gofirst +optimize +disco
     
-    # merge pic services
-    run "services.spec"
+    # merge services
+    load "bin/services.x64.o"
+        merge
 
+    dfr "patch_resolve" "strings"
+    mergelib "../libtcg.x64.zip"
+
+    # patch smart pointers in
     patch "get_module_handle" $GMH
     patch "get_proc_address"  $GPA
 
@@ -18,16 +23,13 @@ x64:
 
     # load the stack spoofing assembly
     load "bin/draugr.x64.bin"
-        # link is ok here because loader
-        # will be in RX or RWX memory
-        link "draugr_stub"
+        linkfunc "draugr_stub"
 
     # hook functions that the loader uses
     attach "KERNEL32$LoadLibraryA"   "_LoadLibraryA"
     attach "KERNEL32$VirtualAlloc"   "_VirtualAlloc"
     attach "KERNEL32$VirtualProtect" "_VirtualProtect"
     attach "KERNEL32$VirtualFree"    "_VirtualFree"
-    preserve "KERNEL32$LoadLibraryA" "init_frame_info"
 
     # mask & link the dll
     generate $MASK 128

@@ -7,11 +7,11 @@
 
 MEMORY_LAYOUT g_memory;
 
-DECLSPEC_IMPORT VOID   WINAPI KERNEL32$Sleep      ( DWORD );
-DECLSPEC_IMPORT VOID   WINAPI KERNEL32$ExitThread ( DWORD );
-DECLSPEC_IMPORT LPVOID WINAPI KERNEL32$HeapAlloc ( HANDLE, DWORD, SIZE_T );
-DECLSPEC_IMPORT BOOL   WINAPI KERNEL32$HeapFree  ( HANDLE, DWORD, LPVOID );
-DECLSPEC_IMPORT LPVOID WINAPI KERNEL32$HeapReAlloc  ( HANDLE, DWORD, LPVOID, SIZE_T );
+DECLSPEC_IMPORT VOID   WINAPI KERNEL32$Sleep       ( DWORD );
+DECLSPEC_IMPORT VOID   WINAPI KERNEL32$ExitThread  ( DWORD );
+DECLSPEC_IMPORT LPVOID WINAPI KERNEL32$HeapAlloc   ( HANDLE, DWORD, SIZE_T );
+DECLSPEC_IMPORT BOOL   WINAPI KERNEL32$HeapFree    ( HANDLE, DWORD, LPVOID );
+DECLSPEC_IMPORT LPVOID WINAPI KERNEL32$HeapReAlloc ( HANDLE, DWORD, LPVOID, SIZE_T );
 
 FARPROC WINAPI _GetProcAddress ( HMODULE hModule, LPCSTR lpProcName )
 {
@@ -101,8 +101,9 @@ LPVOID WINAPI _HeapAlloc ( HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes )
 
     FUNCTION_CALL call = { 0 };
 
-    call.ptr        = ( PVOID ) ( KERNEL32$HeapAlloc );
-    call.argc       = 3;
+    call.ptr  = ( PVOID ) ( KERNEL32$HeapAlloc );
+    call.argc = 3;
+    
     call.args [ 0 ] = spoof_arg ( hHeap );
     call.args [ 1 ] = spoof_arg ( dwFlags );
     call.args [ 2 ] = spoof_arg ( dwBytes );
@@ -121,13 +122,13 @@ LPVOID WINAPI _HeapAlloc ( HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes )
     return result;
 }
 
-// Fixes random crashes that occur inside RPCRT4.DLL
 LPVOID WINAPI _HeapReAlloc ( HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes )
 {
     FUNCTION_CALL call = { 0 };
 
-    call.ptr        = ( PVOID ) ( KERNEL32$HeapReAlloc );
-    call.argc       = 4;
+    call.ptr  = ( PVOID ) ( KERNEL32$HeapReAlloc );
+    call.argc = 4;
+    
     call.args [ 0 ] = spoof_arg ( hHeap );
     call.args [ 1 ] = spoof_arg ( dwFlags );
     call.args [ 2 ] = spoof_arg ( lpMem );
@@ -166,8 +167,9 @@ BOOL WINAPI _HeapFree ( HANDLE hHeap, DWORD dwFlags, LPVOID lpMem )
 {
     FUNCTION_CALL call = { 0 };
 
-    call.ptr        = ( PVOID ) ( KERNEL32$HeapFree );
-    call.argc       = 3;
+    call.ptr  = ( PVOID ) ( KERNEL32$HeapFree );
+    call.argc = 3;
+    
     call.args [ 0 ] = spoof_arg ( hHeap );
     call.args [ 1 ] = spoof_arg ( dwFlags );
     call.args [ 2 ] = spoof_arg ( lpMem );
